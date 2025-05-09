@@ -5,21 +5,23 @@ This is a fork of [NoPhish](https://github.com/powerseb/NoPhish) (by `powerseb`)
 
 ## Changes in this fork
 
-[ ] Moved files that are mostly static into the Docker images instead of the setup.sh script
+* Refactored setup.sh to make it more modular & easy to maintain
 
-[~] Refactored setup.sh to make it more modular & easy to maintain
+* Moved files that are mostly static into the Docker images instead of the setup.sh script
 
-[x] Colored & cleaner output
+* Added the `-k` option to spawn firefox with remote debugging port exposed to the host at address localhost:9XXX to allow for the use of browser automation (for example with puppeteer) to log and control the navigation flow
 
-[x] Added the `-k` option to spawn firefox with remote debugging port exposed to the host at address localhost:9XXX to allow for the use of browser automation (for example with puppeteer) to log and control the navigation flow
+* Added the `-l` option to allow the user to choose a language to be set as a custom preference
 
-[~] Builtin puppeteer script that saves cookies and navigation information into separate logfiles
+* Builtin puppeteer script that saves cookies / navigation information into separate logfiles
 
-[x] Fixed some conditions that caused NoPhish to not load properly sometimes due to processes being spawn before the desktop environment was up
+* Fixed some conditions that caused NoPhish to not load properly sometimes due to processes being spawn before the desktop environment was up
 
-[x] Set the cookie collector loop to every 5 seconds, which is more realistic than 60
+* Set the cookie collector loop to every 5 seconds, which is more realistic than 60
 
-[x] Other miscellaneous bugfixes
+* Colored & cleaner output
+
+* Other miscellaneous bugfixes
 
 # NoPhish
  
