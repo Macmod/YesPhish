@@ -4,11 +4,11 @@ This is a fork of [NoPhish](https://github.com/powerseb/NoPhish) (by `powerseb`)
 
 ## Changes in this fork
 
-* Refactored setup.sh to make it more modular & easy to maintain
+* Refactored `setup.sh` to make it more modular & easier to maintain
 * Moved files that are mostly static into the Docker images instead of the setup.sh script
-* Added the `-x` option to spawn firefox with remote debugging port exposed to the host at address localhost:9XXX to allow for the use of browser automation (for example with puppeteer) to log and control the navigation flow
+* Added the `-x` option to spawn firefox with remote debugging port exposed to the host at address `localhost:9XXX` to allow for the use of browser automation (for example with puppeteer)
 * Added the `-l` option to allow the user to choose a language to be set as a custom preference
-* Builtin puppeteer script that saves cookies / navigation information into separate logfiles
+* Builtin puppeteer scripts to control the target browser & log cookies / navigation information
 * Fixed some conditions that caused NoPhish to not load properly sometimes due to processes being spawn before the desktop environment was up
 * Set the cookie collector loop to every 5 seconds, which is more realistic than 60
 * Colored & cleaner output
@@ -29,15 +29,31 @@ Example:
 $ ./setup.sh -u 1 -t https://target -d hello.local -l es,ru
 ```
 
+### Editing Preferences
+
+This was a bit annoying in NoPhish (it required changing 4 places in the code). In YesPhish you can just edit the `templates/user.header.js` with your desired values and rerun `setup.sh`.
+
 ### RemoteDebuggingPort
+
+(under testing)
 
 With YesPhish it's possible to control the target browser remotely. Just toggle the `-x` flag:
 
 ```bash
 $ ./setup.sh -u 1 -t https://target -d hello.local -x true
+[...]
+[~] Generating configuration file
+[+] Configuration file generated
+[-] Starting containers
+———— vnc-user1 (from image vnc-docker) [1/2] ————
+[+] RemoteDebuggingPort: 9001
+[...]
+———— vnc-muser2 (from image vnc-docker) [1/2] ————
+[+] RemoteDebuggingPort: 9002
+[...]
 ```
 
-You'll see that, for each user container, a port between 9001 and 9999 is mapped to the host.
+For each user container, a port between `9001` and `9999` is mapped to the host.
 
 This is the remote debugging port of the browser running in that container, and can be used to connect and control the browser with tools such as [Puppeteer](https://github.com/puppeteer/puppeteer).
 
@@ -60,10 +76,6 @@ $ node scripts/log.js -p 9001
 > Be aware that some targets, such as Google, use magic tricks to detect when your browser is being controlled by a third-party, and *block the sign-in attempt* before the victim can even enter the password, so this technique won't work for phishing these targets.
 > If I knew how these tricks worked by the time I wrote this tool I would have fixed it - there are many open issues in repos related to Puppeteer about this behavior, but none of the answers seemed to work as of 05/2025.
 > If you find a solution let me know :-) 
-
-### Editing Preferences
-
-This was a bit annoying in NoPhish (it required changing 4 places in the code). In YesPhish you can just edit the `templates/user.header.js` with your desired values and rerun `setup.py`.
 
 # NoPhish
  
