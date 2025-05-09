@@ -2,26 +2,68 @@
 
 This is a fork of [NoPhish](https://github.com/powerseb/NoPhish) (by `powerseb`) with improvements and bugfixes.
 
-
 ## Changes in this fork
 
 * Refactored setup.sh to make it more modular & easy to maintain
-
 * Moved files that are mostly static into the Docker images instead of the setup.sh script
-
 * Added the `-x` option to spawn firefox with remote debugging port exposed to the host at address localhost:9XXX to allow for the use of browser automation (for example with puppeteer) to log and control the navigation flow
-
 * Added the `-l` option to allow the user to choose a language to be set as a custom preference
-
 * Builtin puppeteer script that saves cookies / navigation information into separate logfiles
-
 * Fixed some conditions that caused NoPhish to not load properly sometimes due to processes being spawn before the desktop environment was up
-
 * Set the cookie collector loop to every 5 seconds, which is more realistic than 60
-
 * Colored & cleaner output
-
 * Other miscellaneous bugfixes
+
+## Usage
+
+All existing features of NoPhish [should] work the same way. The following features were added:
+
+### Language
+
+The `-l` option is just a helper to set the preferred languages of the browser.
+
+It can be set to a list of values - as long as it doesn't include spaces.
+
+Example:
+```bash
+$ ./setup.sh -u 1 -t https://target -d hello.local -l es,ru
+```
+
+### RemoteDebuggingPort
+
+With YesPhish it's possible to control the target browser remotely. Just toggle the `-x` flag:
+
+```bash
+$ ./setup.sh -u 1 -t https://target -d hello.local -x true
+```
+
+You'll see that, for each user container, a port between 9001 and 9999 is mapped to the host.
+
+This is the remote debugging port of the browser running in that container, and can be used to connect and control the browser with tools such as [Puppeteer](https://github.com/puppeteer/puppeteer).
+
+For example, the `scripts/control.js` file is a sample that connects to your browser running in the container, and spawns a REPL where you can freely interact with the `browser` object:
+
+```bash
+$ node scripts/control.js -p 9001
+> pages = await browser.pages()
+[TODO]
+> pages[0].goto("https://legitpage")
+```
+
+Another example is the `scripts/log.js` which can be used to log accessed pages and cookies set during the navigation:
+```bash
+$ node scripts/log.js -p 9001
+[TODO]
+```
+
+> [!IMPORTANT]  
+> Be aware that some targets, such as Google, use magic tricks to detect when your browser is being controlled by a third-party, and *block the sign-in attempt* before the victim can even enter the password, so this technique won't work for phishing these targets.
+> If I knew how these tricks worked by the time I wrote this tool I would have fixed it - there are many open issues in repos related to Puppeteer about this behavior, but none of the answers seemed to work as of 05/2025.
+> If you find a solution let me know :-) 
+
+### Editing Preferences
+
+This was a bit annoying in NoPhish (it required changing 4 places in the code). In YesPhish you can just edit the `templates/user.header.js` with your desired values and rerun `setup.py`.
 
 # NoPhish
  
