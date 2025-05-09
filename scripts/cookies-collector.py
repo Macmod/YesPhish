@@ -10,13 +10,14 @@ from datetime import datetime, timedelta
 def main():
     filename = sys.argv[1]
     oformat = sys.argv[2]
+
     # local sqlite Chrome cookie database path
-    file = "phis.db"
+    file = os.path.join("output", "phis.db")
     phis = "phis" + re.search('user(.+?)-', filename).group(1)
+    phis = os.path.join("output", phis)
+
     # Check if summary database exists
     ## if not create db 
-
-    
     cookies = []
     conn = sqlite3.connect(file)
     c = conn.cursor()
@@ -96,9 +97,6 @@ def main():
         data[-1]= "}]"
         with open(phis+"-cookies.json", 'w', encoding='utf-8') as file:
             file.writelines(data)
-
-
-
 
 
 if __name__ == "__main__":

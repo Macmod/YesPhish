@@ -22,10 +22,13 @@ def main(args):
 
   filepath_in = args[0]
   oformat = args[1]
+
   phis = "phis" + re.search('user(.+?)-', filepath_in).group(1)
+  phis = os.path.join("output", phis)
   
   # local sqlite Chrome cookie database path
-  file = "phis.db"
+  file = os.path.join("output", "phis.db")
+
   # Check if summary database exists
   ## if not create db 
   conn = sqlite3.connect(file)
@@ -34,6 +37,7 @@ def main(args):
   conn.commit()
   c.execute("DELETE FROM cookies WHERE phis = ? AND source = ?",(phis,"session"))
   conn.commit()    
+
   if os.path.exists(phis+".json"):
     os.remove(phis+".json")  
   
@@ -131,7 +135,6 @@ def main(args):
       file.writelines(data)
 
 if __name__ == "__main__":
-  import sys
   args = sys.argv[1:]
   if args and not args[0] in ("--help", "-h"):
     main(args)
