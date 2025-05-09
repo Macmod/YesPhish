@@ -20,11 +20,10 @@ def mozlz4_to_text(filepath):
 
 def main(args):
 
-  filepath_in = args[0]
+  filepath_in = os.path.join('output', args[0])
   oformat = args[1]
 
   phis = "phis" + re.search('user(.+?)-', filepath_in).group(1)
-  phis = os.path.join("output", phis)
   
   # local sqlite Chrome cookie database path
   file = os.path.join("output", "phis.db")
@@ -38,11 +37,13 @@ def main(args):
   c.execute("DELETE FROM cookies WHERE phis = ? AND source = ?",(phis,"session"))
   conn.commit()    
 
-  if os.path.exists(phis+".json"):
-    os.remove(phis+".json")  
+  # Is this useless?
+  if os.path.exists(os.path.join('output', phis+".json")):
+    os.remove(os.path.join('output', phis+".json"))
   
-  if os.path.exists(phis+"-sessions.json"):
-    os.remove(phis+"-sessions.json")  
+  sessions_path = os.path.join('output', phis+'-sessions.json')
+  if os.path.exists(sessions_path):
+    os.remove(sessions_path)  
   
   try:
     text = mozlz4_to_text(filepath_in)
@@ -118,20 +119,20 @@ def main(args):
             "value": cookie_value
         }
         json_object = json.dumps(cookie, indent=2)
-        with open(phis+"-sessions.json", "a") as outfile:
+        with open(sessions_path, "a") as outfile:
           outfile.write(json_object + ",\n")
     
-    c.execute("INSERT INTO cookies(phis,name,value,host,expiry, path, isSecure, isHttpOnly, sameSite, source) VALUES(?,?,?,?,?,?,?,?,?,?)",(phis,cookie_name,cookie_value,cookie_host,"0", cookie_path, cookie_secure, cookie_httponly, cookie_samesite,"session"))
-    conn.commit()
+  c.execute("INSERT INTO cookies(phis,name,value,host,expiry, path, isSecure, isHttpOnly, sameSite, source) VALUES(?,?,?,?,?,?,?,?,?,?)",(phis,cookie_name,cookie_value,cookie_host,"0", cookie_path, cookie_secure, cookie_httponly, cookie_samesite,"session"))
+  conn.commit()
     
   conn.close()
     
-  if os.path.exists(phis+"-sessions.json") and oformat == "simple":
-    with open(phis+"-sessions.json", 'r', encoding='utf-8') as file:
+  if os.path.exists(sessions_path) and oformat == "simple":
+    with open(sessions_path, 'r', encoding='utf-8') as file:
       data = file.readlines()
     data[0] = "[{\n"
     data[-1]= "}]"
-    with open(phis+"-sessions.json", 'w', encoding='utf-8') as file:
+    with open(sessions_path, 'w', encoding='utf-8') as file:
       file.writelines(data)
 
 if __name__ == "__main__":

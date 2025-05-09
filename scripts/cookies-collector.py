@@ -8,13 +8,12 @@ import re
 from datetime import datetime, timedelta
 
 def main():
-    filename = sys.argv[1]
+    filename = os.path.join('output', sys.argv[1])
     oformat = sys.argv[2]
 
     # local sqlite Chrome cookie database path
     file = os.path.join("output", "phis.db")
     phis = "phis" + re.search('user(.+?)-', filename).group(1)
-    phis = os.path.join("output", phis)
 
     # Check if summary database exists
     ## if not create db 
@@ -27,11 +26,9 @@ def main():
     c.execute("DELETE FROM cookies WHERE phis = ? AND source = ?",(phis,"cookie"))
     conn.commit() 
     
-    
-
-    
-    if os.path.exists(phis+"-cookies.json"):
-        os.remove(phis+"-cookies.json")
+    cookies_path = os.path.join('output', phis+"-cookies.json")
+    if os.path.exists(cookies_path):
+        os.remove(cookies_path)
     
     # connect to the database
     db = sqlite3.connect(filename)
@@ -86,16 +83,16 @@ def main():
             }
             
             json_object = json.dumps(cookie, indent=2)
-            with open(phis+"-cookies.json", "a") as outfile:
+            with open(cookies_path, "a") as outfile:
                 outfile.write(json_object + ",\n")
     db.close()
     
-    if os.path.exists(phis+"-cookies.json") and oformat == "simple":
-        with open(phis+"-cookies.json", 'r', encoding='utf-8') as file:
+    if os.path.exists(cookies_path) and oformat == "simple":
+        with open(cookies_path, 'r', encoding='utf-8') as file:
             data = file.readlines()
         data[0] = "[{\n"
         data[-1]= "}]"
-        with open(phis+"-cookies.json", 'w', encoding='utf-8') as file:
+        with open(cookies_path, 'w', encoding='utf-8') as file:
             file.writelines(data)
 
 
