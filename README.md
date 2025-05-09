@@ -2,6 +2,8 @@
 
 This is a fork of [NoPhish](https://github.com/powerseb/NoPhish) (by `powerseb`) with improvements and bugfixes.
 
+![screenshot](yesphish.png)
+
 ## Changes in this fork
 
 * Refactored `setup.sh` to make it more modular & easier to maintain
