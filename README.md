@@ -55,9 +55,13 @@ $ ./setup.sh -u 1 -t https://target -d hello.local -x true
 
 For each user container, a port between `9001` and `9999` is mapped to the host.
 
-This is the remote debugging port of the browser running in that container, and can be used to connect and control the browser with tools such as [Puppeteer](https://github.com/puppeteer/puppeteer).
+This is the remote debugging port of the browser running in that container, and can be used to connect and control the browser with tools such as [Puppeteer](https://github.com/puppeteer/puppeteer):
 
-For example, the `scripts/control.js` file is a sample that connects to your browser running in the container, and spawns a REPL where you can freely interact with the `browser` object:
+```bash
+$ npm install puppeteer
+```
+
+For example, the `scripts/control.js` file is a Puppeteer script that connects to your browser running in the container and spawns a REPL where you can freely interact with the `browser` object:
 
 ```bash
 $ node scripts/control.js 9001
@@ -75,6 +79,7 @@ Promise {
 ```
 
 Another example is the `scripts/log.js` which can be used to log accessed pages and cookies set during the navigation:
+
 ```bash
 $ node scripts/log.js 9001
 [TODO]
