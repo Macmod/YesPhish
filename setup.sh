@@ -27,12 +27,12 @@ helpFunction() {
     echo -e "\t -a Adjust default user agent string"  
     echo -e "\t -z Compress profile to zip - will be ignored if parameter -e is set"
     echo -e "\t -r true / false to turn on the redirection to the target page"
-    echo -e "\t -k true / false to turn on the remote debugging port in all browsers"
+    echo -e "\t -x true / false to turn on the remote debugging port in all browsers"
     echo -e "\t -l Preferred language codes for the browser (such as en,es,pt,pt-BR)"
     exit 1 # Exit script after printing help
 }
 
-while getopts "u:d:t:s:c:k:e:a:z:p:r:k:l:" opt
+while getopts "u:d:t:s:c:k:e:a:z:p:r:x:l:" opt
 do
     case "$opt" in
         u ) User="$OPTARG" ;;
@@ -46,7 +46,7 @@ do
         z ) rzip=$OPTARG ;;
         p ) param=$OPTARG ;;
         r ) Redirect=$OPTARG ;;
-        k ) DebugPort=$OPTARG ;;
+        x ) DebugPort=$OPTARG ;;
         l ) AcceptLang=$OPTARG ;;
         ? ) helpFunction ;; # Print helpFunction in case parameter is non-existent
     esac
@@ -356,7 +356,14 @@ case "$1" in
 
         # Start up the corresponding VNC container
         # and then firefox a single time (just to set up the profile?)
-        sudo docker run -dit --name $VNC_CONT -e VNC_PW=$PW -e NOVNC_HEARTBEAT=30 $VNC_IMG  &> /dev/null 
+        echo $DebugPort;
+        if [ "$DebugPort" = "true" ]; then
+            DEBUGPORT_HOST=9$(printf "%03d" $c)
+            echo -e "[+] RemoteDebuggingPort: $DEBUGPORT_HOST"
+            sudo docker run -dit -p $DEBUGPORT_HOST:9222 --name $VNC_CONT -e VNC_PW=$PW -e NOVNC_HEARTBEAT=30 $VNC_IMG  &> /dev/null 
+        else
+            sudo docker run -dit --name $VNC_CONT -e VNC_PW=$PW -e NOVNC_HEARTBEAT=30 $VNC_IMG  &> /dev/null 
+        fi
         sleep 3
         sudo docker exec $VNC_CONT sh -c "firefox &" &> /dev/null
         sleep 1

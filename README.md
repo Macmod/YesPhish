@@ -9,7 +9,7 @@ This is a fork of [NoPhish](https://github.com/powerseb/NoPhish) (by `powerseb`)
 
 * Moved files that are mostly static into the Docker images instead of the setup.sh script
 
-* Added the `-k` option to spawn firefox with remote debugging port exposed to the host at address localhost:9XXX to allow for the use of browser automation (for example with puppeteer) to log and control the navigation flow
+* Added the `-x` option to spawn firefox with remote debugging port exposed to the host at address localhost:9XXX to allow for the use of browser automation (for example with puppeteer) to log and control the navigation flow
 
 * Added the `-l` option to allow the user to choose a language to be set as a custom preference
 
