@@ -35,8 +35,6 @@ This was a bit annoying in NoPhish (it required changing 4 places in the code). 
 
 ### RemoteDebuggingPort
 
-(under testing)
-
 With YesPhish it's possible to control the target browser remotely. Just toggle the `-x` flag:
 
 ```bash
