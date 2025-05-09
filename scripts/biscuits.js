@@ -11,27 +11,35 @@ const log = (label, info = '') => {
 };
 
 const monitorPage = async (page) => {
-    page.on('close', () => log('page.close', 'Page was closed.'));
-    page.on('console', msg => log('page.console', `Message: ${msg.text()}`));
-    page.on('dialog', dialog => {
-        log('page.dialog', `Type: ${dialog.type()} | Message: ${dialog.message()}`);
-        dialog.dismiss().catch(() => {}); // Avoid hanging if not handled
+    const url = await page.url();
+    try {
+        const initialCookies = await page.cookies();
+        log('page.initialcookies', `URL: ${url} | Cookies:\n` + JSON.stringify(initialCookies));
+    } catch(error) {
+        console.error(`Error getting initial cookies for ${url}: ${error.message}`);
+    }
+
+    page.on('response', (res) => {
+        const request = res.request();
+        const url = request.url();
+        const headers = res.headers();
+        const setCookieHeader = headers["set-cookie"];
+        if (setCookieHeader) {
+            log('page.response.set-cookie', `URL: ${url} | Cookies:\n` + JSON.stringify(setCookieHeader))
+        }
     });
-    page.on('domcontentloaded', () => log('page.domcontentloaded', 'DOM fully loaded.'));
-    page.on('error', err => log('page.error', `Page crashed or error occurred: ${err}`));
-    page.on('frameattached', frame => log('page.frameattached', `URL: ${frame.url()}`));
-    page.on('framedetached', frame => log('page.framedetached', `Frame detached.`));
-    page.on('framenavigated', frame => log('page.framenavigated', `Navigated to: ${frame.url()}`));
-    page.on('load', () => log('page.load', 'Page fully loaded.'));
-    page.on('metrics', data => log('page.metrics', `Metrics reported: ${JSON.stringify(data)}`));
-    page.on('pageerror', err => log('page.pageerror', `Unhandled exception: ${err}`));
-    page.on('popup', popup => log('page.popup', 'A new popup/tab was opened.'));
-    page.on('request', req => log('page.request', `URL: ${req.url()}`));
-    page.on('requestfailed', req => log('page.requestfailed', `URL: ${req.url()} | Reason: ${req.failure().errorText}`));
-    page.on('requestfinished', req => log('page.requestfinished', `URL: ${req.url()}`));
-    page.on('response', res => log('page.response', `URL: ${res.url()} | Status: ${res.status()}`));
-    page.on('workercreated', worker => log('page.workercreated', `Worker URL: ${worker.url()}`));
-    page.on('workerdestroyed', worker => log('page.workerdestroyed', `Worker URL: ${worker.url()}`));
+
+    page.on("framenavigated", async (frame) => {
+        if (frame === page.mainFrame()) { // Ensure it's the main frame that navigated
+            const newUrl = frame.url();
+            try {
+                const navCookies = await page.cookies();
+                log('page.navigationcookies', `URL: ${newUrl} | Cookies:\n` + JSON.stringify(navCookies));
+            } catch (error) {
+                console.error(`Error getting cookies after navigation to ${newUrl}: ${error.message}`);
+            }
+        }
+    });
 }
 
 const disconnectBrowser = async (browser) => {
@@ -79,15 +87,6 @@ const disconnectBrowser = async (browser) => {
                     console.error(`Error processing new page: ${error.message}`);
                 }
             }
-        });
-
-        // Monitor other browser events
-        browser.on('targetdestroyed', target => {
-            log('browser.targetdestroyed', `Target destroyed: ${target.url()}`);
-        });
-
-        browser.on("targetchanged", async (target) => {
-            log('browser.targetchanged', `Target changed: ${target.url()}`);
         });
     } catch (error) {
         console.error('[X] Failed to connect or interact with the existing Firefox instance:', error);

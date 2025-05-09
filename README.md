@@ -82,13 +82,26 @@ Another example is the `scripts/log.js` which can be used to log accessed pages 
 
 ```bash
 $ node scripts/log.js 9001
-[TODO]
+[+] Attempting to connect to: ws://127.0.0.1:9001/session
+[+] Successfully connected to Firefox!
+[2025-05-09T12:42:18.085Z] [page.request] URL: https://www.google.com/recaptcha/api2/replaceimage?k=6LfwuyUTAAAAAOAmoS0fdqijC2PbbdH4kjq62Y1b
+[2025-05-09T12:42:18.334Z] [page.response] URL: https://www.google.com/recaptcha/api2/replaceimage?k=6LfwuyUTAAAAAOAmoS0fdqijC2PbbdH4kjq62Y1b | Status: 200
+[2025-05-09T12:42:18.335Z] [page.requestfinished] URL: https://www.google.com/recaptcha/api2/replaceimage?k=6LfwuyUTAAAAAOAmoS0fdqijC2PbbdH4kjq62Y1b
+[2025-05-09T12:42:18.342Z] [page.request] URL: https://www.google.com/recaptcha/api2/payload?p=06AFcWeA6uTvj9strt0xT_K_4AOOs7LL7Kxj4aw9tae_XwAZeqCYh1kruqKR9RArdnKSG3oqfiuR85_lJVHL-ymg1z2bMNpIbxRGkbPMNrd7THXtxdXvOIhdNgeEf39sk8BIHY48T3u4147MHeQP4EiDbhaJefheIokoAQZXX70da6yvYLo16tJsSheoIzCBBMf_QI3D3VreXZQIXQageGWkmwStxmTR5y8w&k=6LfwuyUTAAAAAOAmoS0fdqijC2PbbdH4kjq62Y1b&id=1040911e67ca0861
+[2025-05-09T12:42:18.499Z] [page.response] URL: https://www.google.com/recaptcha/api2/payload?p=06AFcWeA6uTvj9strt0xT_K_4AOOs7LL7Kxj4aw9tae_XwAZeqCYh1kruqKR9RArdnKSG3oqfiuR85_lJVHL-ymg1z2bMNpIbxRGkbPMNrd7THXtxdXvOIhdNgeEf39sk8BIHY48T3u4147MHeQP4EiDbhaJefheIokoAQZXX70da6yvYLo16tJsSheoIzCBBMf_QI3D3VreXZQIXQageGWkmwStxmTR5y8w&k=6LfwuyUTAAAAAOAmoS0fdqijC2PbbdH4kjq62Y1b&id=1040911e67ca0861 | Status: 200
+[2025-05-09T12:42:18.500Z] [page.requestfinished] URL: https://www.google.com/recaptcha/api2/payload?p=06AFcWeA6uTvj9strt0xT_K_4AOOs7LL7Kxj4aw9tae_XwAZeqCYh1kruqKR9RArdnKSG3oqfiuR85_lJVHL-ymg1z2bMNpIbxRGkbPMNrd7THXtxdXvOIhdNgeEf39sk8BIHY48T3u4147MHeQP4EiDbhaJefheIokoAQZXX70da6yvYLo16tJsSheoIzCBBMf_QI3D3VreXZQIXQageGWkmwStxmTR5y8w&k=6LfwuyUTAAAAAOAmoS0fdqijC2PbbdH4kjq62Y1b&id=1040911e67ca0861
 ```
 
+Besides these samples, the `scripts/biscuits.js` can also be used to log cookies set during the victim's navigation.
+
 > [!IMPORTANT]  
-> Be aware that some targets, such as Google, use magic tricks to detect when your browser is being controlled by a third-party, and *block the sign-in attempt* before the victim can even enter the password, so this technique won't work for phishing these targets.
+> Be aware that some targets, such as *Google*, use magic tricks to detect when your browser is being controlled by a third-party, and *block the sign-in attempt* before the victim can even enter the password, so this technique won't work for phishing these targets.
 > If I knew how these tricks worked by the time I wrote this tool I would have fixed it - there are many open issues in repos related to Puppeteer about this behavior, but none of the answers seemed to work as of 05/2025.
 > If you find a solution let me know :-) 
+
+> [!NOTE]  
+> If the Puppeteer process exits abruptely but the browser session isn't disconnected properly, the 
+> session can be stuck and YesPhish will have to be restarted. This shouldn't happen usually, but it's worth noting.
 
 # NoPhish
  

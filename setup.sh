@@ -358,9 +358,12 @@ case "$1" in
         # and then firefox a single time (just to set up the profile?)
         if [ "$DebugPort" = "true" ]; then
             DEBUGPORT_HOST=9$(printf "%03d" $c)
-            echo -e "${GREEN}[+] RemoteDebuggingPort: $DEBUGPORT_HOST${NC}"
             sudo docker run -dit -p $DEBUGPORT_HOST:9223 --name $VNC_CONT -e VNC_PW=$PW -e NOVNC_HEARTBEAT=30 $VNC_IMG  &> /dev/null 
+
+            # Socat is needed since the remote debugging port listens on localhost in the container
             sudo docker exec -dit $VNC_CONT sh -c 'socat TCP-LISTEN:9223,fork TCP:127.0.0.1:9222'
+
+            echo -e "${GREEN}[+] RemoteDebuggingPort: $DEBUGPORT_HOST${NC}"
         else
             sudo docker run -dit --name $VNC_CONT -e VNC_PW=$PW -e NOVNC_HEARTBEAT=30 $VNC_IMG  &> /dev/null 
         fi
