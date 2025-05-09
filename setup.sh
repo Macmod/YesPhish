@@ -356,11 +356,11 @@ case "$1" in
 
         # Start up the corresponding VNC container
         # and then firefox a single time (just to set up the profile?)
-        echo $DebugPort;
         if [ "$DebugPort" = "true" ]; then
             DEBUGPORT_HOST=9$(printf "%03d" $c)
             echo -e "${GREEN}[+] RemoteDebuggingPort: $DEBUGPORT_HOST${NC}"
-            sudo docker run -dit -p $DEBUGPORT_HOST:9222 --name $VNC_CONT -e VNC_PW=$PW -e NOVNC_HEARTBEAT=30 $VNC_IMG  &> /dev/null 
+            sudo docker run -dit -p $DEBUGPORT_HOST:9223 --name $VNC_CONT -e VNC_PW=$PW -e NOVNC_HEARTBEAT=30 $VNC_IMG  &> /dev/null 
+            sudo docker exec -dit $VNC_CONT sh -c 'socat TCP-LISTEN:9223,fork TCP:127.0.0.1:9222'
         else
             sudo docker run -dit --name $VNC_CONT -e VNC_PW=$PW -e NOVNC_HEARTBEAT=30 $VNC_IMG  &> /dev/null 
         fi

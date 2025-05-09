@@ -27,6 +27,7 @@ const FIREFOX_WS_ENDPOINT = 'ws://127.0.0.1:PORT/session'.replace('PORT', args[0
     });
 
     console.log('[+] Successfully connected to Firefox!');
+    console.log('[+] Use the `browser` object in the JS shell below to control the browser.');
     startShell(browser);
   } catch (error) {
     console.error('[X] Failed to connect or interact with the existing Firefox instance:', error);

@@ -60,15 +60,23 @@ This is the remote debugging port of the browser running in that container, and 
 For example, the `scripts/control.js` file is a sample that connects to your browser running in the container, and spawns a REPL where you can freely interact with the `browser` object:
 
 ```bash
-$ node scripts/control.js -p 9001
-> pages = await browser.pages()
-[TODO]
-> pages[0].goto("https://legitpage")
+$ node scripts/control.js 9001
+[+] Attempting to connect to: ws://127.0.0.1:9001/session
+[+] Successfully connected to Firefox!
+[+] Use the `browser` object in the JS shell below to control the browser.
+> (await browser.pages())[0].url()
+'https://www.google.com/'
+> (await browser.pages())[0].goto("https://www.yahoo.com")
+Promise {
+  <pending>,
+  [Symbol(async_id_symbol)]: 758,
+  [Symbol(trigger_async_id_symbol)]: 751
+}
 ```
 
 Another example is the `scripts/log.js` which can be used to log accessed pages and cookies set during the navigation:
 ```bash
-$ node scripts/log.js -p 9001
+$ node scripts/log.js 9001
 [TODO]
 ```
 

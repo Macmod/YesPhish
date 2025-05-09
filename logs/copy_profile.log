@@ -1,7 +1,0 @@
-[~] For the url http://localhost/v1/oauth2/authorize?access-token=1d57518f-2a14-4e9a-887f-80b1b7b4e6af :
-[+]  0  cookies have been collected.
-[+]  1  session cookies have been collected.
-
-[~] Import stealed session and cookie JSON or the firefox profile to impersonate user
-[~] VNC and Rev-Proxy container will be removed
-[+] Done!
