@@ -359,7 +359,7 @@ case "$1" in
         echo $DebugPort;
         if [ "$DebugPort" = "true" ]; then
             DEBUGPORT_HOST=9$(printf "%03d" $c)
-            echo -e "[+] RemoteDebuggingPort: $DEBUGPORT_HOST"
+            echo -e "${GREEN}[+] RemoteDebuggingPort: $DEBUGPORT_HOST${NC}"
             sudo docker run -dit -p $DEBUGPORT_HOST:9222 --name $VNC_CONT -e VNC_PW=$PW -e NOVNC_HEARTBEAT=30 $VNC_IMG  &> /dev/null 
         else
             sudo docker run -dit --name $VNC_CONT -e VNC_PW=$PW -e NOVNC_HEARTBEAT=30 $VNC_IMG  &> /dev/null 
