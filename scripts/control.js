@@ -3,6 +3,11 @@ const repl = require('node:repl');
 function startShell(browser) {
     myrepl = repl.start('> ');
     myrepl.context.browser = browser;
+    myrepl.on('exit', async () => {
+        console.log("[~] Disconnecting from Firefox...");
+        await browser.disconnect();
+        console.log('[+] Done!');
+    })
 }
 
 const puppeteer = require('puppeteer');
