@@ -10,6 +10,30 @@ const log = (label, info = '') => {
     console.log(`[${ts}] [${label}] ${info}`);
 };
 
+const monitorPage = async (page) => {
+    page.on('close', () => log('page.close', 'Page was closed.'));
+    page.on('console', msg => log('page.console', `Message: ${msg.text()}`));
+    page.on('dialog', dialog => {
+        log('page.dialog', `Type: ${dialog.type()} | Message: ${dialog.message()}`);
+        dialog.dismiss().catch(() => {}); // Avoid hanging if not handled
+    });
+    page.on('domcontentloaded', () => log('page.domcontentloaded', 'DOM fully loaded.'));
+    page.on('error', err => log('page.error', `Page crashed or error occurred: ${err}`));
+    page.on('frameattached', frame => log('page.frameattached', `URL: ${frame.url()}`));
+    page.on('framedetached', frame => log('page.framedetached', `Frame detached.`));
+    page.on('framenavigated', frame => log('page.framenavigated', `Navigated to: ${frame.url()}`));
+    page.on('load', () => log('page.load', 'Page fully loaded.'));
+    page.on('metrics', data => log('page.metrics', `Metrics reported: ${JSON.stringify(data)}`));
+    page.on('pageerror', err => log('page.pageerror', `Unhandled exception: ${err}`));
+    page.on('popup', popup => log('page.popup', 'A new popup/tab was opened.'));
+    page.on('request', req => log('page.request', `URL: ${req.url()}`));
+    page.on('requestfailed', req => log('page.requestfailed', `URL: ${req.url()} | Reason: ${req.failure().errorText}`));
+    page.on('requestfinished', req => log('page.requestfinished', `URL: ${req.url()}`));
+    page.on('response', res => log('page.response', `URL: ${res.url()} | Status: ${res.status()}`));
+    page.on('workercreated', worker => log('page.workercreated', `Worker URL: ${worker.url()}`));
+    page.on('workerdestroyed', worker => log('page.workerdestroyed', `Worker URL: ${worker.url()}`));
+}
+
 (async () => {
     console.log(`[+] Attempting to connect to: ${FIREFOX_WS_ENDPOINT}`);
     let browser = null;
@@ -33,33 +57,19 @@ const log = (label, info = '') => {
 
         console.log('[+] Successfully connected to Firefox!');
 
+        // Monitor existing pages
+        pages = await browser.pages();
+        for(const page of pages) {
+            await monitorPage(page);
+        }
+
         // Monitor new pages that are opened
         browser.on("targetcreated", async (target) => {
             if (target.type() === "page") {
                 try {
                     const page = await target.page();
                     if (page) {
-                        page.on('close', () => log('page.close', 'Page was closed.'));
-                        page.on('console', msg => log('page.console', `Message: ${msg.text()}`));
-                        page.on('dialog', dialog => {
-                            log('page.dialog', `Type: ${dialog.type()} | Message: ${dialog.message()}`);
-                            dialog.dismiss().catch(() => {}); // Avoid hanging if not handled
-                        });
-                        page.on('domcontentloaded', () => log('page.domcontentloaded', 'DOM fully loaded.'));
-                        page.on('error', err => log('page.error', `Page crashed or error occurred: ${err}`));
-                        page.on('frameattached', frame => log('page.frameattached', `URL: ${frame.url()}`));
-                        page.on('framedetached', frame => log('page.framedetached', `Frame detached.`));
-                        page.on('framenavigated', frame => log('page.framenavigated', `Navigated to: ${frame.url()}`));
-                        page.on('load', () => log('page.load', 'Page fully loaded.'));
-                        page.on('metrics', data => log('page.metrics', `Metrics reported: ${JSON.stringify(data)}`));
-                        page.on('pageerror', err => log('page.pageerror', `Unhandled exception: ${err}`));
-                        page.on('popup', popup => log('page.popup', 'A new popup/tab was opened.'));
-                        page.on('request', req => log('page.request', `URL: ${req.url()}`));
-                        page.on('requestfailed', req => log('page.requestfailed', `URL: ${req.url()} | Reason: ${req.failure().errorText}`));
-                        page.on('requestfinished', req => log('page.requestfinished', `URL: ${req.url()}`));
-                        page.on('response', res => log('page.response', `URL: ${res.url()} | Status: ${res.status()}`));
-                        page.on('workercreated', worker => log('page.workercreated', `Worker URL: ${worker.url()}`));
-                        page.on('workerdestroyed', worker => log('page.workerdestroyed', `Worker URL: ${worker.url()}`));
+                        monitorPage(page)
                     }
                 } catch (error) {
                     console.error(`Error processing new page: ${error.message}`);
@@ -67,6 +77,7 @@ const log = (label, info = '') => {
             }
         });
 
+        // Monitor other browser events
         browser.on('targetdestroyed', target => {
             log('browser.targetdestroyed', `Target destroyed: ${target.url()}`);
         });
