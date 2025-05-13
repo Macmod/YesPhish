@@ -14,6 +14,7 @@ This is a fork of [NoPhish](https://github.com/powerseb/NoPhish) (by `powerseb`)
 * Fixed some conditions that caused NoPhish to not load properly sometimes due to processes being spawn before the desktop environment was up
 * Set the cookie collector loop to every 5 seconds, which is more realistic than 60
 * Colored & cleaner output
+* Mobile mode can now be toggled on/off with `-m true` / `-m false` (default)
 * Other miscellaneous bugfixes
 
 ## Usage
@@ -34,6 +35,10 @@ $ ./setup.sh -u 1 -t https://target -d hello.local -l es,ru
 ### Editing Preferences
 
 This was a bit annoying in NoPhish (it required changing 4 places in the code). In YesPhish you can just edit the `templates/user.header.js` with your desired values and rerun `setup.sh`.
+
+### Mobile Mode
+
+In the latest commit of NoPhish, mobile mode was enabled by default, spawning 2 containers for each victim (one for desktop requests and another for mobile requests). In YesPhish mobile mode is disabled by default and you can toggle the use of the mobile mode by specifying `-m true`.
 
 ### RemoteDebuggingPort
 
