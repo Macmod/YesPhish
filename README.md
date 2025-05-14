@@ -2,7 +2,12 @@
 
 This is a fork of [NoPhish](https://github.com/powerseb/NoPhish) (by `powerseb`) with improvements and bugfixes.
 
-![screenshot](yesphish.png)
+> [!IMPORTANT]
+> This is the `patchright-chrome` branch, an experiment that totally replaces Firefox with a patched Chrome version that supports undetected browser automation.
+
+> [!NOTE]
+> In this branch, all periodic session/cookie/profile dumps were disabled, as it's more complicated to perform these steps using Chrome's profile files than it is in Firefox. Use the provided `scripts/` or make your own `patchright` script to interact with the browser and dump information such as browser cookies (`biscuits.py` has a working example)
+> Specifying custom preferences for the browser will also not work. Please change Chrome's command-line flags if you must.
 
 ## Changes in this fork
 
