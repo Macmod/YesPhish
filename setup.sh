@@ -1,5 +1,17 @@
 #!/bin/bash
 
+#
+# [ Globals ]
+#
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+PROFILE_COPY_INTERVAL=5
+APACHEFILE="./proxy/000-default.conf"
+
 # [ Cool banner ]
 cat << EOF
                           __    __       __    
@@ -33,6 +45,37 @@ helpFunction() {
     exit 1 # Exit script after printing help
 }
 
+checkPrereqs() {
+    error_found=0
+
+    if ! command -v python3 &>/dev/null; then
+        echo "${RED}[-] Error: Python3 is not installed.${NC}"
+        error_found=1
+    fi
+
+    if command -v python3 &>/dev/null; then
+        if ! python3 -c "import lz4" &>/dev/null; then
+            echo "${RED}[-] Error: Python module 'lz4' is not installed."
+            error_found=1
+        fi
+    fi
+
+    if ! command -v docker &>/dev/null; then
+        echo "${RED}[-] Error: Docker is not installed.${NC}"
+        error_found=1
+    fi
+
+    if ! command -v zip &>/dev/null; then
+        echo -e "${RED}[-] Error: zip is not installed.${NC}"
+        error_found=1
+    fi
+
+    if [ "$error_found" -ne 0 ]; then
+        echo -e "${RED}[-] One or more required tools are missing. Exiting.${NC}"
+        exit 1
+    fi
+}
+
 while getopts "u:d:t:s:c:k:e:a:z:p:r:x:l:m:" opt
 do
     case "$opt" in
@@ -54,19 +97,9 @@ do
     esac
 done
 
-#
-# [ Globals ]
-#
+checkPrereqs
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-PROFILE_COPY_INTERVAL=5
-APACHEFILE="./proxy/000-default.conf"
-
-# Begin script in case all parameters are correct
+# Begin script in case all parameters are correct and the prerequisites are present
 
 # Loop for every user a docker container need to be started 
  
