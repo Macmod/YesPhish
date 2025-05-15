@@ -354,7 +354,7 @@ case "$1" in
     cat templates/user.header.js > vnc/user.js;
     echo "" >> vnc/muser.js;
     echo "" >> vnc/user.js;
-    if [ -n $AcceptLang ]; then
+    if [ -n "$AcceptLang" ]; then
         echo 'user_pref("intl.accept_languages", "'$AcceptLang'");' >> ./vnc/muser.js
         echo 'user_pref("intl.accept_languages", "'$AcceptLang'");' >> ./vnc/user.js
     fi
