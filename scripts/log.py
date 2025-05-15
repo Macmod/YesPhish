@@ -1,8 +1,15 @@
 from patchright.async_api import async_playwright
 import asyncio
 from json import dumps
+import sys
 
-CDP_ENDPOINT = "http://127.0.0.1:9001"
+if len(sys.argv) < 2:
+    print('[-] Usage: python3 log.py <DEBUGPORT>')
+    sys.exit(1)
+else:
+    PORT = int(sys.argv[1])
+
+CDP_ENDPOINT = f"http://127.0.0.1:{PORT}"
 
 def print_event(event_name, payload):
     print(f"\n-- [{event_name}] --")

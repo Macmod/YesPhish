@@ -1,8 +1,15 @@
 from patchright.sync_api import sync_playwright
 from json import dumps
 import code
+import sys
 
-CDP_ENDPOINT = "http://127.0.0.1:9001"
+if len(sys.argv) < 2:
+    print('[-] Usage: python3 control.py <DEBUGPORT>')
+    sys.exit(1)
+else:
+    PORT = int(sys.argv[1])
+
+CDP_ENDPOINT = f"http://127.0.0.1:{PORT}"
 
 with sync_playwright() as p:
     print(f'[+] Attempting to connect to: {CDP_ENDPOINT}');
