@@ -42,6 +42,10 @@ In the latest commit of NoPhish, mobile mode was enabled by default, spawning 2 
 
 ### RemoteDebuggingPort
 
+> [!IMPORTANT]  
+> Be aware that some targets, such as *Google*, use magic tricks to detect when your browser is being controlled by a third-party, and *block the sign-in attempt* before the victim can even enter the password, so this technique won't work for phishing these targets.
+> There are many open issues in repos related to Puppeteer about this behavior, but none of the answers seemed to work as of 05/2025. A solution to this issue using patchright + python + Chrome instead of puppeteer + node + Firefox is implemented in the [patchright-chrome](https://github.com/Macmod/YesPhish/tree/patchright-chrome) branch.
+
 With YesPhish it's possible to control the target browser remotely. Just toggle the `-x` flag:
 
 ```bash
@@ -98,11 +102,6 @@ $ node scripts/log.js 9001
 ```
 
 Besides these samples, the `scripts/biscuits.js` can also be used to log cookies set during the victim's navigation.
-
-> [!IMPORTANT]  
-> Be aware that some targets, such as *Google*, use magic tricks to detect when your browser is being controlled by a third-party, and *block the sign-in attempt* before the victim can even enter the password, so this technique won't work for phishing these targets.
-> If I knew how these tricks worked by the time I wrote this tool I would have fixed it - there are many open issues in repos related to Puppeteer about this behavior, but none of the answers seemed to work as of 05/2025.
-> If you find a solution let me know :-) 
 
 > [!NOTE]  
 > If the Puppeteer process exits abruptely but the browser session isn't disconnected properly, the 
