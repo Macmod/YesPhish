@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <link rel='icon' href='%schema%://%domain%/favicon.ico' type='image/x-icon'>
+    <title>%pagetitle%</title>
+    <style>
+    body, html {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+    }
+    iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
+    </style>
+    <script>
+    function resizeIframe() {
+        var iframe = document.getElementById('myIframe');
+        iframe.style.height = window.innerHeight + 'px';
+        iframe.style.width = window.innerWidth + 'px';
+    }
+
+    window.onload = function () {
+        resizeIframe(); // Resize on initial load
+        window.addEventListener('resize', resizeIframe); // Resize on window resize
+    };
+    </script>
+</head>
+<body>
+    <iframe id='myIframe' src='%schema%://%domain%/%PW%/conn.html?path=/%PW%/websockify&password=%PW%&autoconnect=true&resize=remote' frameborder='0'></iframe>
+</body>
+</html>
