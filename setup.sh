@@ -473,7 +473,11 @@ case "$1" in
 
         echo -e "${YELLOW}[~] Starting browser...${NC}"
         sudo docker exec $VNC_CONT sh -c "$FIREFOX_SPAWN_CMD" &> /dev/null    
-        echo -e "${GREEN}[+] Browser started${NC}"
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}[+] Browser started:${NC}\n$FIREFOX_SPAWN_CMD"
+        else
+            echo -e "${RED}[+] Error starting the browser${NC}"
+        fi
 
         CIP=$(sudo docker container inspect $VNC_CONT | grep -m 1 -oP '"IPAddress":\s*"\K[^"]+')
 
@@ -671,7 +675,6 @@ case "$1" in
         done
 
         sleep $PROFILE_COPY_INTERVAL
-        echo -e "\033[$((($c * 3) - 2))A"
     done
 
     ;;
