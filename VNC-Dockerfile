@@ -12,6 +12,8 @@ RUN rm /usr/libexec/noVNCdim/app/images/icons/novnc.ico
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y python3-pip locales socat
 RUN pip install pyxhook --break-system-packages
+RUN pip install patchright --break-system-packages
+RUN patchright install chrome
 
 USER headless
 

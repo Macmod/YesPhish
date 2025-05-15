@@ -277,7 +277,7 @@ case "$1" in
     # Start with a basic template for user preferences, then
     # fill them with needed values for each case
     # and upload to each container
-    if [ -n $AcceptLang ]; then
+    if [ -n "$AcceptLang" ]; then
         CHROME_PATH_DESKTOP=$CHROME_PATH_DESKTOP" --lang="$AcceptLang
         CHROME_PATH_MOBILE=$CHROME_PATH_MOBILE" --lang="$AcceptLang
     fi
