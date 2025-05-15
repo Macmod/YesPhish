@@ -45,6 +45,20 @@ helpFunction() {
     exit 1 # Exit script after printing help
 }
 
+checkPrereqs() {
+    error_found=0
+
+    if ! command -v docker &>/dev/null; then
+        echo "${RED}[-] Error: Docker is not installed.${NC}"
+        error_found=1
+    fi
+
+    if [ "$error_found" -ne 0 ]; then
+        echo -e "${RED}[-] One or more required tools are missing. Exiting.${NC}"
+        exit 1
+    fi
+}
+
 while getopts "u:d:t:s:c:k:a:p:r:x:l:m:" opt
 do
     case "$opt" in
@@ -64,7 +78,9 @@ do
     esac
 done
 
-# Begin script in case all parameters are correct
+checkPrereqs
+
+# Begin script in case all parameters are correct and the prerequisites are present
 
 # Loop for every user a docker container need to be started 
  
@@ -193,10 +209,6 @@ case "$1" in
         helpFunction
     fi
     
-    if [ -z "$rzip" ]; then
-        rzip=true
-    fi
-
     if [ -n "$SSL" ]; then
         if [ -z "$cert" ] || [ -z "$key" ]; then
             echo "Some or all of the parameters are empty";
@@ -314,8 +326,6 @@ case "$1" in
             CHROME_PATH="$CHROME_PATH_DESKTOP"
         fi
 
-        echo "$CHROME_PATH"
-
         echo -e "${BLUE}———— ${VNC_CONT} (from image ${VNC_IMG}) [$c/$END] ————${NC}";
 
         PW=$(openssl rand -hex 14)
@@ -399,7 +409,11 @@ case "$1" in
 
         echo -e "${YELLOW}[~] Starting browser...${NC}"
         sudo docker exec $VNC_CONT sh -c "$CHROME_SPAWN_CMD" &> /dev/null    
-        echo -e "${GREEN}[+] Browser started${NC}"
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}[+] Browser started:${NC}\n$CHROME_SPAWN_CMD"
+        else
+            echo -e "${RED}[+] Error starting the browser${NC}"
+        fi
 
         CIP=$(sudo docker container inspect $VNC_CONT | grep -m 1 -oP '"IPAddress":\s*"\K[^"]+')
 
@@ -594,7 +608,6 @@ case "$1" in
         done
 
         sleep $PROFILE_COPY_INTERVAL
-        echo -e "\033[$((($c * 3) - 2))A"
     done
 
     ;;
