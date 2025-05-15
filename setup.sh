@@ -454,7 +454,7 @@ case "$1" in
             gsub("%schema%", "'$schema'");
             gsub("%PW%", "'$PW'");
             gsub("%domain%", "'$Domain'");
-            gsub("%pagetitle%", "'$pagetitle'");
+            gsub("%pagetitle%", "'"$pagetitle"'");
             print
         }' templates/proxy.html > ./proxy/$filename
 
