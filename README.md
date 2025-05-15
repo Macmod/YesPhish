@@ -8,11 +8,11 @@ This is a fork of [NoPhish](https://github.com/powerseb/NoPhish) (by `powerseb`)
 > [!NOTE]
 > In this branch, all periodic session/cookie/profile dumps were disabled, as it's more complicated to perform these steps using Chrome's profile files than it is in Firefox. Use the provided patchright scripts or make your own to interact with the browser and dump information such as browser cookies:
 >
-> [scripts/biscuits.py](scripts/biscuits.py): Dumps all browser cookies every time a navigation occurs.
-> [scripts/control.py](scripts/control.py): Spawns a REPL shell in which you can control the browser.
-> [scripts/log.py](scripts/log.py): Monitors a bunch of browser events (may be helpful as boilerplate/troubleshooting utility for the development of new scripts).
+> * [scripts/biscuits.py](scripts/biscuits.py): Dumps all browser cookies every time a navigation occurs.
+> * [scripts/control.py](scripts/control.py): Spawns a REPL shell in which you can control the browser.
+> * [scripts/log.py](scripts/log.py): Monitors a bunch of browser events (may be helpful as boilerplate/troubleshooting utility for the development of new scripts).
 >
-> [Specifying custom preferences for the browser will also not work. Please change Chrome's command-line flags directly in [setup.sh](setup.sh) if you must.
+> Specifying custom preferences for the browser will also not work. Please change Chrome's command-line flags directly in [setup.sh](setup.sh) if you must.
 
 ## Using this branch
 
